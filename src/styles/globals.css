@@ -1,0 +1,185 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── CSS custom properties (set by theme system) ─────────── */
+:root {
+  --accent:        #00c8ff;
+  --accent-dim:    #0080aa;
+  --accent-bright: #80e8ff;
+  --bg:            #060a0f;
+  --surface1:      #0d1520;
+  --surface2:      #142030;
+  --surface3:      #1c2d40;
+  --surface4:      #243548;
+  --text:          #c8e8f8;
+  --text-muted:    #5080a0;
+  --jade:          #00ffcc;
+  --amber:         #ffcc00;
+  --rose:          #ff4488;
+  --sky:           #00c8ff;
+}
+
+@layer base {
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--surface4); border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+}
+
+@layer components {
+  /* ── Cards ─────────────────────── */
+  .card {
+    @apply rounded-2xl p-5;
+    background: var(--surface1);
+    border: 1px solid rgba(255,255,255,0.07);
+  }
+  .card:hover { border-color: rgba(255,255,255,0.11); }
+
+  .card-sm {
+    @apply rounded-xl p-4;
+    background: var(--surface1);
+    border: 1px solid rgba(255,255,255,0.07);
+  }
+
+  /* ── Buttons ────────────────────── */
+  .btn {
+    @apply inline-flex items-center gap-2 px-4 py-2 rounded-xl font-medium text-sm
+           transition-all duration-150 cursor-pointer select-none;
+  }
+  .btn-primary {
+    @apply btn text-white active:scale-95;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent),
+                0 2px 8px color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+  .btn-primary:hover {
+    background: linear-gradient(135deg, var(--accent-bright), var(--accent));
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent),
+                0 4px 16px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .btn-ghost {
+    @apply btn active:scale-95;
+    color: rgba(255,255,255,0.45);
+    background: transparent;
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,0.06); color: white; }
+
+  .btn-danger {
+    @apply btn active:scale-95;
+    color: var(--rose);
+    background: color-mix(in srgb, var(--rose) 12%, transparent);
+  }
+  .btn-danger:hover { background: color-mix(in srgb, var(--rose) 20%, transparent); }
+
+  /* ── Inputs ─────────────────────── */
+  .input {
+    @apply w-full rounded-xl px-3 py-2.5 text-sm placeholder-zinc-600
+           focus:outline-none transition-all duration-150;
+    color: var(--text);
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .input:focus {
+    border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+    background: rgba(255,255,255,0.06);
+  }
+  .select { @apply input appearance-none cursor-pointer; }
+  .label {
+    @apply block text-xs font-medium uppercase tracking-wider mb-1.5;
+    color: rgba(255,255,255,0.35);
+  }
+  .badge { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium; }
+
+  /* ── Navigation ─────────────────── */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
+           transition-all duration-150 cursor-pointer;
+    color: rgba(255,255,255,0.4);
+  }
+  .nav-item:hover { color: rgba(255,255,255,0.85); background: rgba(255,255,255,0.05); }
+  .nav-item.active {
+    color: white;
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    box-shadow: inset 2px 0 0 var(--accent);
+  }
+
+  .section-title { @apply text-xl font-semibold; color: var(--text); }
+  .muted { @apply text-sm; color: var(--text-muted); }
+
+  /* ── Status badges ──────────────── */
+  .status-pending   { @apply badge; background: rgba(255,255,255,0.07); color: #9ca3af; }
+  .status-progress  { @apply badge; background: color-mix(in srgb, var(--sky) 18%, transparent); color: var(--sky); }
+  .status-done      { @apply badge; background: color-mix(in srgb, var(--jade) 18%, transparent); color: var(--jade); }
+  .status-discarded { @apply badge; background: color-mix(in srgb, var(--rose) 12%, transparent); color: var(--rose); }
+
+  /* ── Week grid ──────────────────── */
+  .week-cell-empty {
+    @apply rounded-xl text-xs transition-all cursor-pointer min-h-[52px] flex flex-col items-center justify-center;
+    background: rgba(255,255,255,0.02);
+    border: 1px dashed rgba(255,255,255,0.08);
+  }
+  .week-cell-empty:hover {
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .week-cell-filled {
+    @apply rounded-xl text-xs transition-all cursor-pointer min-h-[52px] flex flex-col items-center justify-center;
+    border: 1px solid rgba(255,255,255,0.1);
+  }
+  .week-day-header {
+    @apply text-center py-2 px-1 rounded-xl text-xs font-medium mb-1;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .week-day-header.today {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+    box-shadow: 0 0 12px color-mix(in srgb, var(--accent) 15%, transparent);
+  }
+}
+
+/* ── Animations ─────────────────────────────── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fade-up 0.2s ease forwards; }
+
+/* ── Mobile ─────────────────────────────────── */
+@media (max-width: 767px) {
+  .card   { @apply p-4 rounded-xl; }
+  .card-sm { @apply p-3 rounded-lg; }
+  .week-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .week-scroll > div { min-width: 480px; }
+}
+
+/* ── Dark selects — force dark appearance on all browsers ── */
+select,
+select.select,
+select.input {
+  color-scheme: dark;
+  background-color: rgba(255,255,255,0.04) !important;
+  color: var(--text) !important;
+  border-color: rgba(255,255,255,0.08) !important;
+}
+
+select option {
+  background-color: #1a1a1f !important;
+  color: #e2e2e8 !important;
+}
+
+select option:hover,
+select option:checked {
+  background-color: #2a2a35 !important;
+}

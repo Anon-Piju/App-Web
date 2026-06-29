@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#060a0f" rx="80"/>
+
+  <!-- Outer diamond -->
+  <path d="M256 60 L452 256 L256 452 L60 256 Z"
+    stroke="#00c8ff" stroke-width="10" fill="none" opacity="0.35"/>
+
+  <!-- Inner diamond -->
+  <path d="M256 120 L392 256 L256 392 L120 256 Z"
+    stroke="#00c8ff" stroke-width="6" fill="none" opacity="0.2"/>
+
+  <!-- Eye white/glow area -->
+  <ellipse cx="256" cy="256" rx="130" ry="80"
+    fill="#00c8ff" opacity="0.07"/>
+
+  <!-- Eye outline -->
+  <path d="M96 256 Q180 160 256 156 Q332 160 416 256 Q332 352 256 356 Q180 352 96 256 Z"
+    stroke="#00c8ff" stroke-width="8" fill="none" opacity="0.9"/>
+
+  <!-- Eye filled shape subtle -->
+  <path d="M96 256 Q180 160 256 156 Q332 160 416 256 Q332 352 256 356 Q180 352 96 256 Z"
+    fill="#00c8ff" opacity="0.06"/>
+
+  <!-- Iris glow -->
+  <circle cx="256" cy="256" r="62" fill="#00c8ff" opacity="0.15"/>
+  <circle cx="256" cy="256" r="62" stroke="#00c8ff" stroke-width="5" fill="none" opacity="0.7"/>
+
+  <!-- Pupil -->
+  <circle cx="256" cy="256" r="36" fill="#00c8ff" opacity="0.95"/>
+
+  <!-- Pupil inner reflection -->
+  <circle cx="244" cy="244" r="13" fill="white" opacity="0.25"/>
+  <circle cx="270" cy="268" r="6"  fill="white" opacity="0.12"/>
+
+  <!-- Tear drop -->
+  <path d="M256 318 L256 390" stroke="#00c8ff" stroke-width="8"
+    stroke-linecap="round" opacity="0.7"/>
+  <circle cx="256" cy="400" r="8" fill="#00c8ff" opacity="0.5"/>
+
+  <!-- Cardinal tick marks -->
+  <line x1="256" y1="60"  x2="256" y2="100" stroke="#00c8ff" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+  <line x1="256" y1="412" x2="256" y2="452" stroke="#00c8ff" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+  <line x1="60"  y1="256" x2="100" y2="256" stroke="#00c8ff" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+  <line x1="412" y1="256" x2="452" y2="256" stroke="#00c8ff" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- Corner diamond accents -->
+  <path d="M256 60 L270 90 L256 80 L242 90 Z" fill="#00c8ff" opacity="0.4"/>
+  <path d="M452 256 L422 242 L432 256 L422 270 Z" fill="#00c8ff" opacity="0.4"/>
+  <path d="M256 452 L242 422 L256 432 L270 422 Z" fill="#00c8ff" opacity="0.4"/>
+  <path d="M60 256 L90 270 L80 256 L90 242 Z" fill="#00c8ff" opacity="0.4"/>
+</svg>
