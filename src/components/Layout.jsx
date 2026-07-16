@@ -1,8 +1,8 @@
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import { useRef, useState, useEffect } from 'react'
-import { LayoutDashboard, CheckSquare, Dumbbell, UtensilsCrossed, BookOpen, CalendarDays, X, Menu, Rocket } from 'lucide-react'
+import { LayoutDashboard, CheckSquare, Dumbbell, UtensilsCrossed, BookOpen, CalendarDays, X, Menu, Rocket, TrendingUp } from 'lucide-react'
 import SettingsModal from './SettingsModal'
-import { THEMES, applyTheme, loadTheme, saveTheme } from '../lib/theme'
+import { applyTheme, loadTheme, saveTheme } from '../lib/theme'
 
 const NAV = [
   { to: '/',            icon: LayoutDashboard, label: 'Dashboard',     colorKey: 'accent' },
@@ -12,6 +12,7 @@ const NAV = [
   { to: '/habits',      icon: BookOpen,        label: 'Hábitos',       colorKey: 'rose' },
   { to: '/planner',     icon: CalendarDays,    label: 'Planificador',  colorKey: 'sky' },
   { to: '/initiatives', icon: Rocket,          label: 'Iniciativas',   colorKey: 'accent' },
+  { to: '/finance',     icon: TrendingUp,      label: 'Finanzas',      colorKey: 'jade' },
 ]
 
 const MOBILE_NAV = [
@@ -46,15 +47,15 @@ function SidebarContent({ appName, onLogoClick, onClose, isMobile, accent }) {
         style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <button onClick={onLogoClick} className="flex items-center gap-3 hover:opacity-85 transition-opacity text-left flex-1 min-w-0">
           <div className="flex-shrink-0 rounded-xl flex items-center justify-center"
-            style={{ width: 36, height: 36, background: `radial-gradient(circle at 40% 40%, ${accent}30, transparent)`, border: `1px solid ${accent}40`, boxShadow: `0 0 16px ${accent}30` }}>
+            style={{ width:36, height:36, background:`radial-gradient(circle at 40% 40%, ${accent}30, transparent)`, border:`1px solid ${accent}40`, boxShadow:`0 0 16px ${accent}30` }}>
             <SheikahEye size={26} accent={accent} />
           </div>
           <div className="min-w-0">
             <p className="font-semibold text-white text-sm leading-none tracking-wide truncate">{appName}</p>
-            <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Toca para personalizar</p>
+            <p className="text-[10px] mt-0.5" style={{ color:'var(--text-muted)' }}>Toca para personalizar</p>
           </div>
         </button>
-        {isMobile && <button onClick={onClose} className="text-zinc-500 hover:text-white p-1 ml-2 flex-shrink-0"><X size={18} /></button>}
+        {isMobile && <button onClick={onClose} className="text-zinc-500 hover:text-white p-1 ml-2 flex-shrink-0"><X size={18}/></button>}
       </div>
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {NAV.map(({ to, icon: Icon, label, colorKey }) => {
@@ -64,13 +65,13 @@ function SidebarContent({ appName, onLogoClick, onClose, isMobile, accent }) {
             <NavLink key={to} to={to} onClick={onClose} className={`nav-item ${isActive ? 'active' : ''}`}>
               <Icon size={16} style={isActive ? { color } : {}} />
               <span className="flex-1 text-sm">{label}</span>
-              {isActive && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: accent, boxShadow: `0 0 6px ${accent}cc` }} />}
+              {isActive && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background:accent, boxShadow:`0 0 6px ${accent}cc` }}/>}
             </NavLink>
           )
         })}
       </nav>
-      <div className="px-4 py-3 flex-shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.18)' }}>v1.6.0 · local</p>
+      <div className="px-4 py-3 flex-shrink-0" style={{ borderTop:'1px solid rgba(255,255,255,0.06)' }}>
+        <p className="text-xs" style={{ color:'rgba(255,255,255,0.18)' }}>v1.7.0 · local</p>
       </div>
     </>
   )
@@ -80,20 +81,20 @@ function BottomBar() {
   const location = useLocation()
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 flex"
-      style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.08)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      style={{ background:'rgba(0,0,0,0.92)', backdropFilter:'blur(20px)', borderTop:'1px solid rgba(255,255,255,0.08)', paddingBottom:'env(safe-area-inset-bottom)' }}>
       {MOBILE_NAV.map(({ to, icon: Icon, label, colorKey, center }) => {
         const isActive = to === '/' ? location.pathname === '/' : location.pathname.startsWith(to)
         const color = `var(--${colorKey})`
         return (
           <NavLink key={to} to={to} className="flex-1 flex flex-col items-center justify-center transition-all"
-            style={{ color: isActive ? color : 'rgba(255,255,255,0.32)', paddingTop: center ? 0 : 10, paddingBottom: center ? 0 : 8 }}>
+            style={{ color:isActive?color:'rgba(255,255,255,0.32)', paddingTop:center?0:10, paddingBottom:center?0:8 }}>
             {center ? (
               <div className="mb-3 w-12 h-12 rounded-2xl flex items-center justify-center"
-                style={{ background: isActive ? 'linear-gradient(135deg, var(--accent), var(--accent-dim))' : 'linear-gradient(135deg, #2e2e3a, #222228)', boxShadow: isActive ? '0 0 20px color-mix(in srgb, var(--accent) 50%, transparent)' : '0 4px 12px rgba(0,0,0,0.4)', border: '2px solid rgba(255,255,255,0.1)' }}>
-                <Icon size={22} color={isActive ? '#fff' : 'rgba(255,255,255,0.5)'} />
+                style={{ background:isActive?'linear-gradient(135deg, var(--accent), var(--accent-dim))':'linear-gradient(135deg, #2e2e3a, #222228)', boxShadow:isActive?'0 0 20px color-mix(in srgb, var(--accent) 50%, transparent)':'0 4px 12px rgba(0,0,0,0.4)', border:'2px solid rgba(255,255,255,0.1)' }}>
+                <Icon size={22} color={isActive?'#fff':'rgba(255,255,255,0.5)'}/>
               </div>
             ) : (
-              <><Icon size={20} /><span style={{ fontSize: '9px', fontWeight: isActive ? 600 : 400, marginTop: 2 }}>{label}</span></>
+              <><Icon size={20}/><span style={{ fontSize:'9px', fontWeight:isActive?600:400, marginTop:2 }}>{label}</span></>
             )}
           </NavLink>
         )
@@ -136,52 +137,52 @@ export default function Layout() {
   const accent = theme.accent
 
   return (
-    <div className="flex h-screen" style={{ background: 'var(--bg)' }}
+    <div className="flex h-screen" style={{ background:'var(--bg)' }}
       onTouchStart={isMobile ? onTouchStart : undefined}
       onTouchEnd={isMobile ? onTouchEnd : undefined}>
 
-      {settingsOpen && <SettingsModal currentTheme={theme} appName={appName} onThemeChange={handleThemeChange} onNameChange={handleNameChange} onClose={() => setSettingsOpen(false)} />}
+      {settingsOpen && <SettingsModal currentTheme={theme} appName={appName} onThemeChange={handleThemeChange} onNameChange={handleNameChange} onClose={() => setSettingsOpen(false)}/>}
 
       {!isMobile && (
         <>
-          <div onMouseEnter={onEnter} className="fixed left-0 top-0 bottom-0 z-50" style={{ width: '6px' }} />
+          <div onMouseEnter={onEnter} className="fixed left-0 top-0 bottom-0 z-50" style={{ width:'6px' }}/>
           <div onMouseEnter={onEnter} onMouseLeave={onLeave} className="fixed left-0 top-0 bottom-0 z-50 flex flex-col"
-            style={{ width: '230px', background: 'var(--surface1)', borderRight: '1px solid rgba(255,255,255,0.07)', transform: sidebarOpen ? 'translateX(0)' : 'translateX(-230px)', transition: 'transform 0.26s cubic-bezier(0.4,0,0.2,1)', boxShadow: sidebarOpen ? '6px 0 40px rgba(0,0,0,0.6)' : 'none' }}>
-            <SidebarContent appName={appName} onLogoClick={() => setSettingsOpen(true)} onClose={() => {}} isMobile={false} accent={accent} />
+            style={{ width:'230px', background:'var(--surface1)', borderRight:'1px solid rgba(255,255,255,0.07)', transform:sidebarOpen?'translateX(0)':'translateX(-230px)', transition:'transform 0.26s cubic-bezier(0.4,0,0.2,1)', boxShadow:sidebarOpen?'6px 0 40px rgba(0,0,0,0.6)':'none' }}>
+            <SidebarContent appName={appName} onLogoClick={() => setSettingsOpen(true)} onClose={() => {}} isMobile={false} accent={accent}/>
           </div>
           <div className="fixed left-0 top-0 bottom-0 z-40 pointer-events-none"
-            style={{ width: '3px', background: `linear-gradient(to bottom, transparent, ${accent}60, transparent)`, opacity: sidebarOpen ? 0 : 1, transition: 'opacity 0.2s ease' }} />
+            style={{ width:'3px', background:`linear-gradient(to bottom, transparent, ${accent}60, transparent)`, opacity:sidebarOpen?0:1, transition:'opacity 0.2s ease' }}/>
         </>
       )}
 
-      {isMobile && sidebarOpen && <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />}
+      {isMobile && sidebarOpen && <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={() => setSidebarOpen(false)}/>}
       {isMobile && (
         <div className="fixed left-0 top-0 bottom-0 z-50 flex flex-col"
-          style={{ width: '260px', background: 'var(--surface1)', borderRight: '1px solid rgba(255,255,255,0.07)', transform: sidebarOpen ? 'translateX(0)' : 'translateX(-260px)', transition: 'transform 0.26s cubic-bezier(0.4,0,0.2,1)', boxShadow: sidebarOpen ? '6px 0 40px rgba(0,0,0,0.6)' : 'none' }}>
-          <SidebarContent appName={appName} onLogoClick={() => { setSidebarOpen(false); setSettingsOpen(true) }} onClose={() => setSidebarOpen(false)} isMobile={true} accent={accent} />
+          style={{ width:'260px', background:'var(--surface1)', borderRight:'1px solid rgba(255,255,255,0.07)', transform:sidebarOpen?'translateX(0)':'translateX(-260px)', transition:'transform 0.26s cubic-bezier(0.4,0,0.2,1)', boxShadow:sidebarOpen?'6px 0 40px rgba(0,0,0,0.6)':'none' }}>
+          <SidebarContent appName={appName} onLogoClick={() => { setSidebarOpen(false); setSettingsOpen(true) }} onClose={() => setSidebarOpen(false)} isMobile={true} accent={accent}/>
         </div>
       )}
 
-      <div className={`flex-1 flex flex-col ${isPlanner ? 'overflow-hidden' : 'overflow-y-auto'}`}
-        style={{ paddingBottom: isMobile && !isPlanner ? '70px' : 0 }}>
+      <div className={`flex-1 flex flex-col ${isPlanner?'overflow-hidden':'overflow-y-auto'}`}
+        style={{ paddingBottom:isMobile&&!isPlanner?'70px':0 }}>
         {isMobile && (
           <div className="sticky top-0 z-30 flex items-center justify-between px-4 py-3 flex-shrink-0"
-            style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <button onClick={() => setSidebarOpen(true)} className="btn-ghost px-2 py-1.5"><Menu size={20} /></button>
+            style={{ background:'rgba(0,0,0,0.92)', backdropFilter:'blur(20px)', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
+            <button onClick={() => setSidebarOpen(true)} className="btn-ghost px-2 py-1.5"><Menu size={20}/></button>
             <button onClick={() => setSettingsOpen(true)} className="flex items-center gap-2">
-              <SheikahEye size={22} accent={accent} />
+              <SheikahEye size={22} accent={accent}/>
               <span className="text-white text-sm font-semibold">{appName}</span>
             </button>
-            <div className="w-8" />
+            <div className="w-8"/>
           </div>
         )}
-        <div className={`fade-up flex-1 min-h-0 ${isPlanner ? 'flex flex-col overflow-hidden px-4 py-4' : isMobile ? 'px-4 py-4' : 'px-10 py-8 max-w-4xl mx-auto w-full'}`}>
-          <Outlet />
+        <div className={`fade-up flex-1 min-h-0 ${isPlanner?'flex flex-col overflow-hidden px-4 py-4':isMobile?'px-4 py-4':'px-10 py-8 max-w-4xl mx-auto w-full'}`}>
+          <Outlet/>
         </div>
-        {isMobile && !isPlanner && <div style={{ height: '70px', flexShrink: 0 }} />}
+        {isMobile && !isPlanner && <div style={{ height:'70px', flexShrink:0 }}/>}
       </div>
 
-      {isMobile && <BottomBar />}
+      {isMobile && <BottomBar/>}
     </div>
   )
 }
