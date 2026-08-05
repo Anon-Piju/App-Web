@@ -70,7 +70,7 @@ function StatusBadge({ value, onChange }) {
 }
 
 // ── Comment thread ────────────────────────────────────────────
-function CommentThread({ taskId }) {
+function CommentThread({ taskId, onCollapse }) {
   const [comments, setComments] = useState([])
   const [text, setText]         = useState('')
   const [loading, setLoading]   = useState(true)
@@ -102,11 +102,19 @@ function CommentThread({ taskId }) {
 
   return (
     <div className="mt-3 pt-3 space-y-2" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-      <div className="flex items-center gap-1.5 mb-2">
-        <MessageSquare size={12} style={{ color: 'var(--text-muted)' }} />
-        <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-          Comentarios {comments.length > 0 && `(${comments.length})`}
-        </span>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5">
+          <MessageSquare size={12} style={{ color: 'var(--text-muted)' }} />
+          <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+            Comentarios {comments.length > 0 && `(${comments.length})`}
+          </span>
+        </div>
+        {onCollapse && (
+          <button onClick={onCollapse} className="text-[10px] px-2 py-0.5 rounded-lg transition-colors hover:bg-white/5"
+            style={{ color: 'var(--text-muted)' }}>
+            Minimizar ↑
+          </button>
+        )}
       </div>
 
       {loading ? null : comments.length === 0 ? (
@@ -125,7 +133,7 @@ function CommentThread({ taskId }) {
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                   <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.25)' }}>
-                    {format(new Date(c.created_at), "d MMM 'a las' HH:mm", { locale: es })}
+                    {format(new Date(c.created_at), "dd/MM/yy HH:mm")}
                   </p>
                   <button onClick={() => deleteComment(c.id)}
                     className="text-[10px] opacity-0 group-hover:opacity-100 transition-opacity hover:text-rose"
@@ -352,7 +360,6 @@ function TrashView({ tasks, onRestore, onDeletePermanently, onDeleteAll }) {
 // ── Task card ─────────────────────────────────────────────────
 function TaskCard({ task, taskType, index, onEdit, onDiscard, onStatusChange, onDragStart, onDragEnter, onDragEnd }) {
   const [expanded, setExpanded] = useState(false)
-  const [showComments, setShowComments] = useState(false)
   const [commentCount, setCommentCount] = useState(null)
 
   // Lazy-load comment count
@@ -367,7 +374,7 @@ function TaskCard({ task, taskType, index, onEdit, onDiscard, onStatusChange, on
       onDragEnter={() => onDragEnter(index)}
       onDragEnd={onDragEnd}
       onDragOver={e => e.preventDefault()}
-      onDoubleClick={() => setExpanded(v => !v)}
+      onClick={() => setExpanded(v => !v)}
       className="group rounded-2xl transition-all cursor-default"
       style={{
         background: 'var(--surface1)',
@@ -409,27 +416,17 @@ function TaskCard({ task, taskType, index, onEdit, onDiscard, onStatusChange, on
             </button>
           )}
 
-          {/* Expanded: comments toggle */}
+          {/* Comments shown directly when expanded, with collapse button on the right */}
           {expanded && (
-            <button onClick={e => { e.stopPropagation(); setShowComments(v => !v) }}
-              className="flex items-center gap-1.5 mt-3 text-xs transition-opacity hover:opacity-80"
-              style={{ color: showComments ? 'var(--accent-bright)' : 'var(--text-muted)' }}>
-              <MessageSquare size={12} />
-              {showComments ? 'Ocultar comentarios' : `Comentarios${commentCount !== null ? ` (${commentCount})` : ''}`}
-            </button>
-          )}
-
-          {/* Comment thread */}
-          {expanded && showComments && (
-            <div onClick={e => e.stopPropagation()}>
-              <CommentThread taskId={task.id} />
+            <div onClick={e => e.stopPropagation()} className="mt-3">
+              <CommentThread taskId={task.id} onCollapse={() => setExpanded(false)} />
             </div>
           )}
 
           {/* Created date when expanded */}
           {expanded && (
             <p className="text-[10px] mt-3" style={{ color: 'rgba(255,255,255,0.2)' }}>
-              Creada {format(new Date(task.created_at), "d MMM yyyy 'a las' HH:mm", { locale: es })}
+              Creada {format(new Date(task.created_at), "dd/MM/yy HH:mm")}
             </p>
           )}
         </div>
@@ -456,7 +453,7 @@ export default function Tasks() {
   const [tasks, setTasks]         = useState([])
   const [taskTypes, setTaskTypes] = useState([])
   const [loading, setLoading]     = useState(true)
-  const [filter, setFilter]       = useState('all')
+  const [filter, setFilter]       = useState(() => localStorage.getItem('tasks_filter') || 'all')
   const [typeFilter, setTypeFilter] = useState('all')
   const [showForm, setShowForm]   = useState(false)
   const [showTypeManager, setShowTypeManager] = useState(false)
@@ -511,7 +508,7 @@ export default function Tasks() {
   async function restoreTask(task) {
     await supabase.from('tasks').update({ status: 'pending', updated_at: new Date().toISOString() }).eq('id', task.id)
     setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: 'pending' } : t))
-    setFilter('all')
+    setFilter('all'); localStorage.setItem('tasks_filter','all')
   }
 
   async function deletePermanently(id) {
@@ -623,15 +620,15 @@ export default function Tasks() {
 
       {/* Filters */}
       <div className="flex gap-1.5 flex-wrap">
-        <button onClick={() => setFilter('all')} className={`btn text-sm py-1 ${filter === 'all' ? 'bg-white/10 text-white' : 'btn-ghost'}`}>
+        <button onClick={() => { setFilter('all'); localStorage.setItem('tasks_filter','all') }} className={`btn text-sm py-1 ${filter === 'all' ? 'bg-white/10 text-white' : 'btn-ghost'}`}>
           Todas <span className="ml-1 text-xs opacity-50">{activeTasks.length}</span>
         </button>
         {ACTIVE_STATUSES.map(s => (
-          <button key={s.value} onClick={() => setFilter(s.value)} className={`btn text-sm py-1 ${filter === s.value ? 'bg-white/10 text-white' : 'btn-ghost'}`}>
+          <button key={s.value} onClick={() => { setFilter(s.value); localStorage.setItem('tasks_filter', s.value) }} className={`btn text-sm py-1 ${filter === s.value ? 'bg-white/10 text-white' : 'btn-ghost'}`}>
             {s.label} <span className="ml-1 text-xs opacity-50">{counts[s.value]}</span>
           </button>
         ))}
-        <button onClick={() => setFilter('discarded')}
+        <button onClick={() => { setFilter('discarded'); localStorage.setItem('tasks_filter','discarded') }}
           className={`btn text-sm py-1 ml-auto ${filter === 'discarded' ? 'text-rose' : 'btn-ghost'}`}
           style={{ color: filter === 'discarded' ? 'var(--rose)' : '' }}>
           🗑️ Papelera
