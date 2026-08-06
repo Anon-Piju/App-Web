@@ -1,74 +1,33 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useRef, useState, useEffect } from 'react'
-import { LayoutDashboard, CheckSquare, Dumbbell, UtensilsCrossed, BookOpen, CalendarDays, X, Menu, Rocket, TrendingUp, Heart, ChevronDown } from 'lucide-react'
+import { LayoutDashboard, CheckSquare, Dumbbell, UtensilsCrossed, BookOpen, CalendarDays, X, Menu, Rocket, TrendingUp, Heart, ChevronDown, Scale, Activity } from 'lucide-react'
 import SettingsModal from './SettingsModal'
 import { applyTheme, loadTheme, saveTheme } from '../lib/theme'
 
-// ── Nav structure ─────────────────────────────────────────────
 const NAV_GROUPS = [
+  { single: true,  to: '/',            icon: LayoutDashboard, label: 'Dashboard',      colorKey: 'accent' },
+  { single: true,  to: '/tasks',       icon: CheckSquare,     label: 'Tareas',         colorKey: 'accent' },
   {
-    single: true,
-    to: '/',
-    icon: LayoutDashboard,
-    label: 'Dashboard',
-    colorKey: 'accent',
-  },
-  {
-    single: true,
-    to: '/tasks',
-    icon: CheckSquare,
-    label: 'Tareas',
-    colorKey: 'accent',
-  },
-  {
-    group: true,
-    label: 'Salud',
-    icon: Heart,
-    colorKey: 'rose',
-    basePath: '/health',
+    group: true, label: 'Salud', icon: Heart, colorKey: 'rose', to: '/health',
     items: [
-      { to: '/training',  icon: Dumbbell,        label: 'Entrenamiento', colorKey: 'jade' },
-      { to: '/nutrition', icon: UtensilsCrossed,  label: 'Nutrición',     colorKey: 'amber' },
-      { to: '/habits',    icon: BookOpen,         label: 'Hábitos',       colorKey: 'rose' },
+      { to: '/training',  icon: Dumbbell,        label: 'Entrenamiento', colorKey: 'jade'  },
+      { to: '/nutrition', icon: UtensilsCrossed, label: 'Nutrición',     colorKey: 'amber' },
+      { to: '/habits',    icon: BookOpen,        label: 'Hábitos',       colorKey: 'rose'  },
     ],
   },
   {
-    single: true,
-    to: '/planner',
-    icon: CalendarDays,
-    label: 'Planificador',
-    colorKey: 'sky',
+    group: true, label: 'Progreso', icon: Activity, colorKey: 'sky', to: '/progress',
+    items: [
+      { to: '/weight', icon: Scale, label: 'Peso corporal', colorKey: 'sky' },
+    ],
   },
-  {
-    single: true,
-    to: '/initiatives',
-    icon: Rocket,
-    label: 'Iniciativas',
-    colorKey: 'accent',
-  },
-  {
-    single: true,
-    to: '/finance',
-    icon: TrendingUp,
-    label: 'Finanzas',
-    colorKey: 'jade',
-  },
+  { single: true,  to: '/planner',     icon: CalendarDays,    label: 'Planificador',   colorKey: 'sky'    },
+  { single: true,  to: '/initiatives', icon: Rocket,          label: 'Iniciativas',    colorKey: 'accent' },
+  { single: true,  to: '/finance',     icon: TrendingUp,      label: 'Finanzas',       colorKey: 'jade'   },
 ]
 
-// All group paths for "is inside a group" check
-const GROUP_PATHS = NAV_GROUPS
-  .filter(g => g.group)
-  .flatMap(g => g.items.map(i => i.to))
+const GROUP_PATHS = NAV_GROUPS.filter(g => g.group).flatMap(g => g.items.map(i => i.to))
 
-function isInGroup(pathname) {
-  return GROUP_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))
-}
-
-function getGroupForPath(pathname) {
-  return NAV_GROUPS.find(g => g.group && g.items.some(i => pathname === i.to || pathname.startsWith(i.to + '/')))
-}
-
-// ── Sheikah Eye ───────────────────────────────────────────────
 function SheikahEye({ size = 28, accent = '#00c8ff' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 28 28" fill="none">
@@ -85,100 +44,84 @@ function SheikahEye({ size = 28, accent = '#00c8ff' }) {
   )
 }
 
-// ── Logo / back button ────────────────────────────────────────
-function LogoButton({ isHome, accent, appName, onHomeClick }) {
-  return (
-    <button onClick={onHomeClick}
-      className="flex items-center gap-3 hover:opacity-85 transition-opacity text-left flex-1 min-w-0">
-      <div className="flex-shrink-0 rounded-xl flex items-center justify-center"
-        style={{ width: 36, height: 36, background: `radial-gradient(circle at 40% 40%, ${accent}30, transparent)`, border: `1px solid ${accent}40`, boxShadow: `0 0 16px ${accent}30` }}>
-        <SheikahEye size={26} accent={accent} />
-      </div>
-      <div className="min-w-0">
-        <p className="font-semibold text-white text-sm leading-none tracking-wide truncate">{appName}</p>
-        <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
-          {isHome ? 'Ajustes' : '← Volver al inicio'}
-        </p>
-      </div>
-    </button>
-  )
-}
-
-// ── Sidebar nav item ──────────────────────────────────────────
 function NavItem({ to, icon: Icon, label, colorKey, onClick }) {
   const location = useLocation()
   const isActive = to === '/' ? location.pathname === '/' : location.pathname === to
   const color = `var(--${colorKey})`
   return (
-    <NavLink to={to} onClick={onClick}
-      className={`nav-item ${isActive ? 'active' : ''}`}>
+    <NavLink to={to} onClick={onClick} className={`nav-item ${isActive ? 'active' : ''}`}>
       <Icon size={16} style={isActive ? { color } : {}} />
       <span className="flex-1 text-sm">{label}</span>
     </NavLink>
   )
 }
 
-// ── Group nav item (collapsible) ──────────────────────────────
-function GroupNavItem({ group, onItemClick, accent }) {
+function GroupNavItem({ group, onItemClick }) {
   const location = useLocation()
-  const isGroupActive = group.items.some(i => location.pathname === i.to || location.pathname.startsWith(i.to + '/'))
-  const [open, setOpen] = useState(isGroupActive)
+  const isGroupActive = group.items.some(i => location.pathname === i.to)
+  const isGroupHome = location.pathname === group.to
+  const isAnyActive = isGroupActive || isGroupHome
+  const [open, setOpen] = useState(isAnyActive)
   const color = `var(--${group.colorKey})`
-
-  useEffect(() => { if (isGroupActive) setOpen(true) }, [isGroupActive])
-
+  useEffect(() => { if (isAnyActive) setOpen(true) }, [isAnyActive])
   return (
     <div>
-      <button onClick={() => setOpen(v => !v)}
-        className={`nav-item w-full ${isGroupActive ? 'active' : ''}`}
-        style={isGroupActive ? { color: `var(--${group.colorKey})` } : {}}>
-        <group.icon size={16} style={isGroupActive ? { color } : {}} />
+      <NavLink to={group.to}
+        className={`nav-item ${isGroupHome ? 'active' : ''}`}
+        style={isAnyActive ? { color } : {}}>
+        <group.icon size={16} style={isAnyActive ? { color } : {}} />
         <span className="flex-1 text-sm text-left">{group.label}</span>
-        <ChevronDown size={13} style={{ color: 'var(--text-muted)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
-      </button>
+        <button onClick={e => { e.preventDefault(); e.stopPropagation(); setOpen(v => !v) }}
+          className="p-0.5 hover:bg-white/5 rounded">
+          <ChevronDown size={13} style={{ color: 'var(--text-muted)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+        </button>
+      </NavLink>
       {open && (
         <div className="ml-4 mt-0.5 space-y-0.5 border-l pl-3" style={{ borderColor: 'rgba(255,255,255,0.07)' }}>
-          {group.items.map(item => (
-            <NavItem key={item.to} {...item} onClick={onItemClick} />
-          ))}
+          {group.items.map(item => <NavItem key={item.to} {...item} onClick={onItemClick} />)}
         </div>
       )}
     </div>
   )
 }
 
-// ── Sidebar content ───────────────────────────────────────────
 function SidebarContent({ appName, onLogoClick, onClose, isMobile, accent }) {
   return (
     <>
       <div className="px-4 py-4 flex items-center justify-between flex-shrink-0"
         style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <LogoButton appName={appName} accent={accent} onHomeClick={onLogoClick} />
-        {isMobile && <button onClick={onClose} className="text-zinc-500 hover:text-white p-1 ml-2 flex-shrink-0"><X size={18}/></button>}
+        <button onClick={onLogoClick} className="flex items-center gap-3 hover:opacity-85 transition-opacity text-left flex-1 min-w-0">
+          <div className="flex-shrink-0 rounded-xl flex items-center justify-center"
+            style={{ width: 36, height: 36, background: `radial-gradient(circle at 40% 40%, ${accent}30, transparent)`, border: `1px solid ${accent}40`, boxShadow: `0 0 16px ${accent}30` }}>
+            <SheikahEye size={26} accent={accent} />
+          </div>
+          <div className="min-w-0">
+            <p className="font-semibold text-white text-sm leading-none tracking-wide truncate">{appName}</p>
+            <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>Toca para volver / ajustes</p>
+          </div>
+        </button>
+        {isMobile && <button onClick={onClose} className="text-zinc-500 hover:text-white p-1 ml-2 flex-shrink-0"><X size={18} /></button>}
       </div>
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {NAV_GROUPS.map((item, i) =>
-          item.single ? (
-            <NavItem key={item.to} {...item} onClick={onClose} />
-          ) : (
-            <GroupNavItem key={i} group={item} onItemClick={onClose} accent={accent} />
-          )
+          item.single
+            ? <NavItem key={item.to} {...item} onClick={onClose} />
+            : <GroupNavItem key={i} group={item} onItemClick={onClose} />
         )}
       </nav>
       <div className="px-4 py-3 flex-shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.18)' }}>v1.8.0 · local</p>
+        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.18)' }}>v1.9.0 · local</p>
       </div>
     </>
   )
 }
 
-// ── Mobile bottom bar ─────────────────────────────────────────
 const MOBILE_NAV = [
-  { to: '/tasks',     icon: CheckSquare,     label: 'Tareas',    colorKey: 'accent' },
-  { to: '/training',  icon: Dumbbell,        label: 'Salud',     colorKey: 'jade'   },
-  { to: '/',          icon: LayoutDashboard, label: 'Inicio',    colorKey: 'accent', center: true },
-  { to: '/finance',   icon: TrendingUp,      label: 'Finanzas',  colorKey: 'jade'   },
-  { to: '/planner',   icon: CalendarDays,    label: 'Plan',      colorKey: 'sky'    },
+  { to: '/tasks',    icon: CheckSquare,     label: 'Tareas',   colorKey: 'accent' },
+  { to: '/health',   icon: Heart,           label: 'Salud',    colorKey: 'rose'   },
+  { to: '/',         icon: LayoutDashboard, label: 'Inicio',   colorKey: 'accent', center: true },
+  { to: '/finance',  icon: TrendingUp,      label: 'Finanzas', colorKey: 'jade'   },
+  { to: '/progress', icon: Activity,        label: 'Progreso', colorKey: 'sky'    },
 ]
 
 function BottomBar() {
@@ -207,7 +150,6 @@ function BottomBar() {
   )
 }
 
-// ── Main Layout ───────────────────────────────────────────────
 export default function Layout() {
   const location   = useLocation()
   const navigate   = useNavigate()
@@ -228,7 +170,13 @@ export default function Layout() {
   useEffect(() => { if (isMobile) setSidebarOpen(false) }, [location.pathname])
 
   function handleThemeChange(t) { setTheme(t); saveTheme(t); applyTheme(t) }
-  function handleNameChange(n)  { setAppName(n); localStorage.setItem('orbit_app_name', n); document.title = `${n} — Dashboard` }
+  function handleNameChange(n)  { setAppName(n); localStorage.setItem('orbit_app_name', n) }
+
+  function handleLogoClick() {
+    if (location.pathname === '/') setSettingsOpen(true)
+    else navigate('/')
+  }
+
   function onEnter() { clearTimeout(closeTimer.current); setSidebarOpen(true) }
   function onLeave() { closeTimer.current = setTimeout(() => setSidebarOpen(false), 180) }
   function onTouchStart(e) { touchStartX.current = e.touches[0].clientX }
@@ -239,15 +187,8 @@ export default function Layout() {
     touchStartX.current = null
   }
 
-  const isHome = location.pathname === '/'
   const isPlanner = location.pathname === '/planner'
   const accent = theme.accent
-
-  // Logo click: home → settings, elsewhere → go home
-  function handleLogoClick() {
-    if (isHome) setSettingsOpen(true)
-    else navigate('/')
-  }
 
   return (
     <div className="flex h-screen" style={{ background: 'var(--bg)' }}
@@ -260,7 +201,6 @@ export default function Layout() {
           onClose={() => setSettingsOpen(false)} />
       )}
 
-      {/* Desktop sidebar */}
       {!isMobile && (
         <>
           <div onMouseEnter={onEnter} className="fixed left-0 top-0 bottom-0 z-50" style={{ width: '6px' }} />
@@ -273,7 +213,6 @@ export default function Layout() {
         </>
       )}
 
-      {/* Mobile sidebar */}
       {isMobile && sidebarOpen && <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />}
       {isMobile && (
         <div className="fixed left-0 top-0 bottom-0 z-50 flex flex-col"
@@ -282,10 +221,8 @@ export default function Layout() {
         </div>
       )}
 
-      {/* Main content */}
       <div className={`flex-1 flex flex-col ${isPlanner ? 'overflow-hidden' : 'overflow-y-auto'}`}
         style={{ paddingBottom: isMobile && !isPlanner ? '70px' : 0 }}>
-        {/* Mobile top bar */}
         {isMobile && (
           <div className="sticky top-0 z-30 flex items-center justify-between px-4 py-3 flex-shrink-0"
             style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -297,13 +234,11 @@ export default function Layout() {
             <div className="w-8" />
           </div>
         )}
-
         <div className={`fade-up flex-1 min-h-0 ${isPlanner ? 'flex flex-col overflow-hidden px-4 py-4' : isMobile ? 'px-4 py-4' : 'px-10 py-8 max-w-4xl mx-auto w-full'}`}>
           <Outlet />
         </div>
         {isMobile && !isPlanner && <div style={{ height: '70px', flexShrink: 0 }} />}
       </div>
-
       {isMobile && <BottomBar />}
     </div>
   )
