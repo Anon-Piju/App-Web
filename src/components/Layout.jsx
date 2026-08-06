@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useRef, useState, useEffect } from 'react'
-import { LayoutDashboard, CheckSquare, Dumbbell, UtensilsCrossed, BookOpen, CalendarDays, X, Menu, Rocket, TrendingUp, Heart, ChevronDown, Scale, Activity } from 'lucide-react'
+import { LayoutDashboard, CheckSquare, Dumbbell, UtensilsCrossed, BookOpen, CalendarDays, X, Menu, Rocket, TrendingUp, Heart, ChevronDown, Scale } from 'lucide-react'
 import SettingsModal from './SettingsModal'
 import { applyTheme, loadTheme, saveTheme } from '../lib/theme'
 
@@ -13,20 +13,13 @@ const NAV_GROUPS = [
       { to: '/training',  icon: Dumbbell,        label: 'Entrenamiento', colorKey: 'jade'  },
       { to: '/nutrition', icon: UtensilsCrossed, label: 'Nutrición',     colorKey: 'amber' },
       { to: '/habits',    icon: BookOpen,        label: 'Hábitos',       colorKey: 'rose'  },
-    ],
-  },
-  {
-    group: true, label: 'Progreso', icon: Activity, colorKey: 'sky', to: '/progress',
-    items: [
-      { to: '/weight', icon: Scale, label: 'Peso corporal', colorKey: 'sky' },
+      { to: '/weight',    icon: Scale,           label: 'Peso corporal', colorKey: 'sky'   },
     ],
   },
   { single: true,  to: '/planner',     icon: CalendarDays,    label: 'Planificador',   colorKey: 'sky'    },
-  { single: true,  to: '/initiatives', icon: Rocket,          label: 'Iniciativas',    colorKey: 'accent' },
+  { single: true,  to: '/initiatives', icon: Rocket,          label: 'Iniciativas',    colorKey: 'initiative' },
   { single: true,  to: '/finance',     icon: TrendingUp,      label: 'Finanzas',       colorKey: 'jade'   },
 ]
-
-const GROUP_PATHS = NAV_GROUPS.filter(g => g.group).flatMap(g => g.items.map(i => i.to))
 
 function SheikahEye({ size = 28, accent = '#00c8ff' }) {
   return (
@@ -110,18 +103,18 @@ function SidebarContent({ appName, onLogoClick, onClose, isMobile, accent }) {
         )}
       </nav>
       <div className="px-4 py-3 flex-shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.18)' }}>v1.9.0 · local</p>
+        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.18)' }}>v1.10.0 · local</p>
       </div>
     </>
   )
 }
 
 const MOBILE_NAV = [
-  { to: '/tasks',    icon: CheckSquare,     label: 'Tareas',   colorKey: 'accent' },
-  { to: '/health',   icon: Heart,           label: 'Salud',    colorKey: 'rose'   },
-  { to: '/',         icon: LayoutDashboard, label: 'Inicio',   colorKey: 'accent', center: true },
-  { to: '/finance',  icon: TrendingUp,      label: 'Finanzas', colorKey: 'jade'   },
-  { to: '/progress', icon: Activity,        label: 'Progreso', colorKey: 'sky'    },
+  { to: '/tasks',       icon: CheckSquare,     label: 'Tareas',    colorKey: 'accent' },
+  { to: '/health',      icon: Heart,           label: 'Salud',     colorKey: 'rose'   },
+  { to: '/',            icon: LayoutDashboard, label: 'Inicio',    colorKey: 'accent', center: true },
+  { to: '/finance',     icon: TrendingUp,      label: 'Finanzas',  colorKey: 'jade'   },
+  { to: '/planner',     icon: CalendarDays,    label: 'Plan',      colorKey: 'sky'    },
 ]
 
 function BottomBar() {
@@ -171,12 +164,7 @@ export default function Layout() {
 
   function handleThemeChange(t) { setTheme(t); saveTheme(t); applyTheme(t) }
   function handleNameChange(n)  { setAppName(n); localStorage.setItem('orbit_app_name', n) }
-
-  function handleLogoClick() {
-    if (location.pathname === '/') setSettingsOpen(true)
-    else navigate('/')
-  }
-
+  function handleLogoClick() { if (location.pathname === '/') setSettingsOpen(true); else navigate('/') }
   function onEnter() { clearTimeout(closeTimer.current); setSidebarOpen(true) }
   function onLeave() { closeTimer.current = setTimeout(() => setSidebarOpen(false), 180) }
   function onTouchStart(e) { touchStartX.current = e.touches[0].clientX }

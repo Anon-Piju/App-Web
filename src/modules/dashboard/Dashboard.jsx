@@ -1,17 +1,16 @@
 import { useEffect, useState } from 'react'
-import { CheckSquare, Dumbbell, Flame, TrendingUp, Rocket, TrendingDown, Heart, Activity, CalendarDays, BookOpen } from 'lucide-react'
+import { CheckSquare, Dumbbell, Flame, TrendingUp, Rocket, TrendingDown, Heart, Activity, CalendarDays, Scale } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth } from 'date-fns'
 
-// Unique colors — no repeats
+// Unique colors — no repeats. Iniciativas gets a standout color, Finanzas takes the old Iniciativas green.
 const CATEGORY_CARDS = [
-  { to: '/tasks',      icon: CheckSquare, label: 'Tareas',          color: '#a99cf9', bg: 'rgba(169,156,249,0.12)', border: 'rgba(169,156,249,0.2)', desc: 'Gestiona tus pendientes' },
-  { to: '/health',     icon: Heart,       label: 'Salud',           color: '#f16b6b', bg: 'rgba(241,107,107,0.12)', border: 'rgba(241,107,107,0.2)', desc: 'Entreno · Nutrición · Hábitos', group: true },
-  { to: '/progress',   icon: Activity,    label: 'Progreso físico', color: '#5aafee', bg: 'rgba(90,175,238,0.12)',  border: 'rgba(90,175,238,0.2)',  desc: 'Seguimiento de peso y evolución', group: true },
-  { to: '/planner',    icon: CalendarDays,label: 'Planificador',    color: '#f4a94e', bg: 'rgba(244,169,78,0.12)',  border: 'rgba(244,169,78,0.2)',  desc: 'Organiza tu tiempo' },
-  { to: '/initiatives',icon: Rocket,      label: 'Iniciativas',     color: '#00c896', bg: 'rgba(0,200,150,0.12)',   border: 'rgba(0,200,150,0.2)',   desc: 'Proyectos e ideas' },
-  { to: '/finance',    icon: TrendingUp,  label: 'Finanzas',        color: '#3ecf8e', bg: 'rgba(62,207,142,0.12)',  border: 'rgba(62,207,142,0.2)',  desc: 'Gastos e ingresos' },
+  { to: '/tasks',       icon: CheckSquare, label: 'Tareas',       color: '#a99cf9', bg: 'rgba(169,156,249,0.12)', border: 'rgba(169,156,249,0.2)', desc: 'Gestiona tus pendientes' },
+  { to: '/health',      icon: Heart,       label: 'Salud',        color: '#f16b6b', bg: 'rgba(241,107,107,0.12)', border: 'rgba(241,107,107,0.2)', desc: 'Entreno · Nutrición · Hábitos · Peso', group: true },
+  { to: '/planner',     icon: CalendarDays,label: 'Planificador', color: '#f4a94e', bg: 'rgba(244,169,78,0.12)',  border: 'rgba(244,169,78,0.2)',  desc: 'Organiza tu tiempo' },
+  { to: '/initiatives', icon: Rocket,      label: 'Iniciativas',  color: '#e879f9', bg: 'rgba(232,121,249,0.12)', border: 'rgba(232,121,249,0.2)', desc: 'Proyectos e ideas' },
+  { to: '/finance',     icon: TrendingUp,  label: 'Finanzas',     color: '#00c896', bg: 'rgba(0,200,150,0.12)',   border: 'rgba(0,200,150,0.2)',   desc: 'Gastos e ingresos' },
 ]
 
 function fmt(n) { return (n ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }
@@ -47,8 +46,6 @@ export default function Dashboard() {
       { data: tasks },
       { data: workouts },
       { data: nutToday },
-      { data: habits },
-      { data: habitLogs },
       { data: transactions },
       { data: initiatives },
       { data: weightLogs },
@@ -56,8 +53,6 @@ export default function Dashboard() {
       supabase.from('tasks').select('id,status'),
       supabase.from('workouts').select('id,date,split_id,custom_block_id').gte('date', format(subDays(new Date(), 90), 'yyyy-MM-dd')),
       supabase.from('nutrition_logs').select('calories,protein_g').eq('date', today),
-      supabase.from('habits').select('id,frequency,freq_days_per_week'),
-      supabase.from('habit_logs').select('habit_id,date').gte('date', weekStart).lte('date', weekEnd),
       supabase.from('transactions').select('type,amount,date').gte('date', monthStart),
       supabase.from('initiatives').select('id,status,priority'),
       supabase.from('weight_logs').select('weight_kg,date').order('date', { ascending: false }).limit(2),
@@ -75,16 +70,11 @@ export default function Dashboard() {
     const trainedThisWeek = (workouts||[]).filter(w => w.date >= weekStart && w.date <= weekEnd && w.split_id !== 'rest').length
     const nut = (nutToday||[]).reduce((a, r) => ({ cal: a.cal + (r.calories||0), protein: a.protein + (r.protein_g||0) }), { cal: 0, protein: 0 })
 
-    const habitsCompleted = (habits||[]).filter(h => {
-      const logs = (habitLogs||[]).filter(l => l.habit_id === h.id)
-      if (h.frequency === 'weekly') return logs.length > 0
-      if (h.frequency === 'xweek') return logs.length >= (h.freq_days_per_week || 3)
-      return logs.some(l => l.date === today)
-    }).length
-
     const income  = (transactions||[]).filter(t => t.type === 'income').reduce((a, t) => a + (t.amount||0), 0)
     const expense = (transactions||[]).filter(t => t.type === 'expense').reduce((a, t) => a + (t.amount||0), 0)
-    const activeInits = (initiatives||[]).filter(i => ['idea','researching','validating','active'].includes(i.status)).length
+
+    // Active = only researching, validating, active — NOT idea, NOT paused
+    const activeInits = (initiatives||[]).filter(i => ['researching','validating','active'].includes(i.status)).length
 
     const latestWeight = weightLogs?.[0]
     const prevWeight   = weightLogs?.[1]
@@ -94,7 +84,6 @@ export default function Dashboard() {
       tasks: { pending, inProgress, total: (tasks||[]).length },
       training: { streak, thisWeek: trainedThisWeek },
       nutrition: nut,
-      habits: { done: habitsCompleted, total: (habits||[]).length },
       finance: { income, expense, balance: income - expense },
       initiatives: { active: activeInits },
       weight: latestWeight ? { kg: latestWeight.weight_kg, diff: weightDiff } : null,
@@ -111,13 +100,11 @@ export default function Dashboard() {
     if (stats.nutrition.cal > 0)
       cards.push({ icon: Flame, color: '#f4a94e', label: 'Calorías hoy', value: `${fmt(stats.nutrition.cal)} kcal`, sub: `Proteína: ${Math.round(stats.nutrition.protein)}g`, to: '/nutrition' })
     if (stats.finance.income > 0 || stats.finance.expense > 0)
-      cards.push({ icon: stats.finance.balance >= 0 ? TrendingUp : TrendingDown, color: '#3ecf8e', label: 'Balance del mes', value: `${stats.finance.balance >= 0 ? '+' : ''}${fmt(stats.finance.balance)}€`, sub: `↑${fmt(stats.finance.income)}€  ↓${fmt(stats.finance.expense)}€`, to: '/finance' })
-    if (stats.habits.total > 0)
-      cards.push({ icon: BookOpen, color: '#00c896', label: 'Hábitos esta semana', value: `${stats.habits.done}/${stats.habits.total}`, sub: stats.habits.done === stats.habits.total ? '¡Completado! 🎯' : 'en camino', to: '/health' })
+      cards.push({ icon: stats.finance.balance >= 0 ? TrendingUp : TrendingDown, color: '#00c896', label: 'Balance del mes', value: `${stats.finance.balance >= 0 ? '+' : ''}${fmt(stats.finance.balance)}€`, sub: `↑${fmt(stats.finance.income)}€  ↓${fmt(stats.finance.expense)}€`, to: '/finance' })
     if (stats.weight)
-      cards.push({ icon: Activity, color: '#5aafee', label: 'Peso actual', value: `${stats.weight.kg} kg`, sub: stats.weight.diff !== null ? `${stats.weight.diff > 0 ? '+' : ''}${stats.weight.diff.toFixed(1)} kg vs anterior` : 'Último registro', to: '/progress' })
+      cards.push({ icon: Scale, color: '#5aafee', label: 'Peso actual', value: `${stats.weight.kg} kg`, sub: stats.weight.diff !== null ? `${stats.weight.diff > 0 ? '+' : ''}${stats.weight.diff.toFixed(1)} kg vs anterior` : 'Último registro', to: '/weight' })
     if (stats.initiatives.active > 0)
-      cards.push({ icon: Rocket, color: '#c77dff', label: 'Iniciativas activas', value: stats.initiatives.active, sub: 'en progreso', to: '/initiatives' })
+      cards.push({ icon: Rocket, color: '#e879f9', label: 'Iniciativas activas', value: stats.initiatives.active, sub: 'investigando, validando o en marcha', to: '/initiatives' })
     return cards
   }
 

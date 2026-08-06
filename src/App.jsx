@@ -2,7 +2,6 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
 import Dashboard from './modules/dashboard/Dashboard'
 import HealthDashboard from './modules/dashboard/HealthDashboard'
-import ProgressDashboard from './modules/dashboard/ProgressDashboard'
 import Tasks from './modules/tasks/Tasks'
 import Training from './modules/training/Training'
 import Nutrition from './modules/nutrition/Nutrition'
@@ -18,7 +17,6 @@ export default function App() {
       <Route path="/" element={<Layout />}>
         <Route index            element={<Dashboard />} />
         <Route path="health"    element={<HealthDashboard />} />
-        <Route path="progress"  element={<ProgressDashboard />} />
         <Route path="tasks"     element={<Tasks />} />
         <Route path="training"  element={<Training />} />
         <Route path="nutrition" element={<Nutrition />} />
