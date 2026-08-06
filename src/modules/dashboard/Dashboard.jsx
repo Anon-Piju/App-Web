@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { CheckSquare, Dumbbell, Flame, TrendingUp, Rocket, TrendingDown, Heart, Activity, CalendarDays, Scale } from 'lucide-react'
+import { CheckSquare, Dumbbell, Flame, TrendingUp, Rocket, TrendingDown, Heart, Activity, CalendarDays, Scale, BookOpen } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth } from 'date-fns'
@@ -49,6 +49,8 @@ export default function Dashboard() {
       { data: transactions },
       { data: initiatives },
       { data: weightLogs },
+      { data: habits },
+      { data: habitLogs },
     ] = await Promise.all([
       supabase.from('tasks').select('id,status'),
       supabase.from('workouts').select('id,date,split_id,custom_block_id').gte('date', format(subDays(new Date(), 90), 'yyyy-MM-dd')),
@@ -56,6 +58,8 @@ export default function Dashboard() {
       supabase.from('transactions').select('type,amount,date').gte('date', monthStart),
       supabase.from('initiatives').select('id,status,priority'),
       supabase.from('weight_logs').select('weight_kg,date').order('date', { ascending: false }).limit(2),
+      supabase.from('habits').select('id,frequency,freq_days_per_week'),
+      supabase.from('habit_logs').select('habit_id,date').gte('date', weekStart).lte('date', weekEnd),
     ])
 
     const pending    = (tasks||[]).filter(t => t.status === 'pending').length
@@ -80,6 +84,13 @@ export default function Dashboard() {
     const prevWeight   = weightLogs?.[1]
     const weightDiff   = latestWeight && prevWeight ? (latestWeight.weight_kg - prevWeight.weight_kg) : null
 
+    const habitsCompleted = (habits||[]).filter(h => {
+      const logs = (habitLogs||[]).filter(l => l.habit_id === h.id)
+      if (h.frequency === 'weekly') return logs.length > 0
+      if (h.frequency === 'xweek') return logs.length >= (h.freq_days_per_week || 3)
+      return logs.some(l => l.date === today)
+    }).length
+
     setStats({
       tasks: { pending, inProgress, total: (tasks||[]).length },
       training: { streak, thisWeek: trainedThisWeek },
@@ -87,6 +98,7 @@ export default function Dashboard() {
       finance: { income, expense, balance: income - expense },
       initiatives: { active: activeInits },
       weight: latestWeight ? { kg: latestWeight.weight_kg, diff: weightDiff } : null,
+      habits: { done: habitsCompleted, total: (habits||[]).length },
     })
   }
 
@@ -103,6 +115,8 @@ export default function Dashboard() {
       cards.push({ icon: stats.finance.balance >= 0 ? TrendingUp : TrendingDown, color: '#00c896', label: 'Balance del mes', value: `${stats.finance.balance >= 0 ? '+' : ''}${fmt(stats.finance.balance)}€`, sub: `↑${fmt(stats.finance.income)}€  ↓${fmt(stats.finance.expense)}€`, to: '/finance' })
     if (stats.weight)
       cards.push({ icon: Scale, color: '#5aafee', label: 'Peso actual', value: `${stats.weight.kg} kg`, sub: stats.weight.diff !== null ? `${stats.weight.diff > 0 ? '+' : ''}${stats.weight.diff.toFixed(1)} kg vs anterior` : 'Último registro', to: '/weight' })
+    if (stats.habits.total > 0)
+      cards.push({ icon: BookOpen, color: '#facc15', label: 'Hábitos esta semana', value: `${stats.habits.done}/${stats.habits.total}`, sub: stats.habits.done === stats.habits.total ? '¡Completado! 🎯' : 'en camino', to: '/habits' })
     if (stats.initiatives.active > 0)
       cards.push({ icon: Rocket, color: '#e879f9', label: 'Iniciativas activas', value: stats.initiatives.active, sub: 'investigando, validando o en marcha', to: '/initiatives' })
     return cards
