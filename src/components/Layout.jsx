@@ -12,10 +12,10 @@ const NAV_GROUPS = [
     items: [
       { to: '/training',  icon: Dumbbell,        label: 'Entrenamiento', colorKey: 'jade'  },
       { to: '/nutrition', icon: UtensilsCrossed, label: 'Nutrición',     colorKey: 'amber' },
-      { to: '/habits',    icon: BookOpen,        label: 'Hábitos',       colorKey: 'rose'  },
       { to: '/weight',    icon: Scale,           label: 'Peso corporal', colorKey: 'sky'   },
     ],
   },
+  { single: true,  to: '/habits',      icon: BookOpen,        label: 'Hábitos',        colorKey: 'amber'  },
   { single: true,  to: '/planner',     icon: CalendarDays,    label: 'Planificador',   colorKey: 'sky'    },
   { single: true,  to: '/initiatives', icon: Rocket,          label: 'Iniciativas',    colorKey: 'initiative' },
   { single: true,  to: '/finance',     icon: TrendingUp,      label: 'Finanzas',       colorKey: 'jade'   },

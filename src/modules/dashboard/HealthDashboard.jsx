@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Dumbbell, UtensilsCrossed, BookOpen, Scale } from 'lucide-react'
+import { Dumbbell, UtensilsCrossed, Scale } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { format, subDays, startOfWeek, endOfWeek } from 'date-fns'
@@ -7,7 +7,6 @@ import { format, subDays, startOfWeek, endOfWeek } from 'date-fns'
 const SECTIONS = [
   { to: '/training',  icon: Dumbbell,        label: 'Entrenamiento', color: '#3ecf8e', bg: 'rgba(62,207,142,0.12)',  border: 'rgba(62,207,142,0.2)',  desc: 'Bloques, planificación y estadísticas' },
   { to: '/nutrition', icon: UtensilsCrossed, label: 'Nutrición',     color: '#f4a94e', bg: 'rgba(244,169,78,0.12)',  border: 'rgba(244,169,78,0.2)',  desc: 'Comidas, macros y menú semanal' },
-  { to: '/habits',    icon: BookOpen,        label: 'Hábitos',       color: '#f16b6b', bg: 'rgba(241,107,107,0.12)', border: 'rgba(241,107,107,0.2)', desc: 'Objetivos diarios y seguimiento' },
   { to: '/weight',    icon: Scale,           label: 'Peso corporal', color: '#5aafee', bg: 'rgba(90,175,238,0.12)',  border: 'rgba(90,175,238,0.2)',  desc: 'Registra y visualiza tu evolución' },
 ]
 
@@ -34,14 +33,10 @@ export default function HealthDashboard() {
     const [
       { data: workouts },
       { data: nutToday },
-      { data: habits },
-      { data: habitLogs },
       { data: weightLogs },
     ] = await Promise.all([
       supabase.from('workouts').select('id,date,split_id').gte('date', format(subDays(new Date(), 90), 'yyyy-MM-dd')),
       supabase.from('nutrition_logs').select('calories,protein_g').eq('date', today),
-      supabase.from('habits').select('id,frequency,freq_days_per_week'),
-      supabase.from('habit_logs').select('habit_id,date').gte('date', weekStart).lte('date', weekEnd),
       supabase.from('weight_logs').select('weight_kg,date').order('date', { ascending: false }).limit(2),
     ])
 
@@ -53,18 +48,12 @@ export default function HealthDashboard() {
     }
     const trainedThisWeek = (workouts || []).filter(w => w.date >= weekStart && w.date <= weekEnd && w.split_id !== 'rest').length
     const nut = (nutToday || []).reduce((a, r) => ({ cal: a.cal + (r.calories || 0), protein: a.protein + (r.protein_g || 0) }), { cal: 0, protein: 0 })
-    const done = (habits || []).filter(h => {
-      const logs = (habitLogs || []).filter(l => l.habit_id === h.id)
-      if (h.frequency === 'weekly') return logs.length > 0
-      if (h.frequency === 'xweek') return logs.length >= (h.freq_days_per_week || 3)
-      return logs.some(l => l.date === today)
-    }).length
 
     const latestWeight = weightLogs?.[0]
     const prevWeight    = weightLogs?.[1]
     const weightDiff    = latestWeight && prevWeight ? (latestWeight.weight_kg - prevWeight.weight_kg) : null
 
-    setStats({ streak, thisWeek: trainedThisWeek, cal: Math.round(nut.cal), protein: Math.round(nut.protein), habitsDone: done, habitsTotal: (habits || []).length, weight: latestWeight?.weight_kg, weightDiff })
+    setStats({ streak, thisWeek: trainedThisWeek, cal: Math.round(nut.cal), protein: Math.round(nut.protein), weight: latestWeight?.weight_kg, weightDiff })
   }
 
   return (
@@ -72,7 +61,7 @@ export default function HealthDashboard() {
       <div>
         <p className="text-sm capitalize" style={{ color: 'var(--text-muted)' }}>{todayFmt}</p>
         <h1 className="text-2xl font-semibold text-white mt-1">Salud 💪</h1>
-        <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>Entrenamiento, nutrición, hábitos y peso</p>
+        <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>Entrenamiento, nutrición y peso</p>
       </div>
 
       {stats && (
@@ -80,7 +69,6 @@ export default function HealthDashboard() {
           {stats.streak > 0 && <StatPill label="Racha entreno" value={`${stats.streak}🔥`} color="#3ecf8e" />}
           <StatPill label="Entrenos sem." value={stats.thisWeek} color="#3ecf8e" />
           {stats.cal > 0 && <StatPill label="Kcal hoy" value={stats.cal} color="#f4a94e" />}
-          <StatPill label="Hábitos" value={`${stats.habitsDone}/${stats.habitsTotal}`} color="#f16b6b" />
           {stats.weight && <StatPill label="Peso" value={`${stats.weight} kg`} color="#5aafee" />}
         </div>
       )}

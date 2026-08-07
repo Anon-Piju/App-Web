@@ -7,7 +7,8 @@ import { format, subDays, startOfWeek, endOfWeek, startOfMonth } from 'date-fns'
 // Unique colors — no repeats. Iniciativas gets a standout color, Finanzas takes the old Iniciativas green.
 const CATEGORY_CARDS = [
   { to: '/tasks',       icon: CheckSquare, label: 'Tareas',       color: '#a99cf9', bg: 'rgba(169,156,249,0.12)', border: 'rgba(169,156,249,0.2)', desc: 'Gestiona tus pendientes' },
-  { to: '/health',      icon: Heart,       label: 'Salud',        color: '#f16b6b', bg: 'rgba(241,107,107,0.12)', border: 'rgba(241,107,107,0.2)', desc: 'Entreno · Nutrición · Hábitos · Peso', group: true },
+  { to: '/health',      icon: Heart,       label: 'Salud',        color: '#f16b6b', bg: 'rgba(241,107,107,0.12)', border: 'rgba(241,107,107,0.2)', desc: 'Entreno · Nutrición · Peso', group: true },
+  { to: '/habits',      icon: BookOpen,    label: 'Hábitos',      color: '#facc15', bg: 'rgba(250,204,21,0.12)',  border: 'rgba(250,204,21,0.2)',  desc: 'Objetivos diarios y seguimiento' },
   { to: '/planner',     icon: CalendarDays,label: 'Planificador', color: '#f4a94e', bg: 'rgba(244,169,78,0.12)',  border: 'rgba(244,169,78,0.2)',  desc: 'Organiza tu tiempo' },
   { to: '/initiatives', icon: Rocket,      label: 'Iniciativas',  color: '#e879f9', bg: 'rgba(232,121,249,0.12)', border: 'rgba(232,121,249,0.2)', desc: 'Proyectos e ideas' },
   { to: '/finance',     icon: TrendingUp,  label: 'Finanzas',     color: '#00c896', bg: 'rgba(0,200,150,0.12)',   border: 'rgba(0,200,150,0.2)',   desc: 'Gastos e ingresos' },
