@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, Flame, ChevronLeft, ChevronRight, Edit2, X, Check, BookOpen, Apple, Calendar } from 'lucide-react'
+import { Plus, Trash2, Flame, ChevronLeft, ChevronRight, Edit2, X, Check, BookOpen, Apple, Calendar, LayoutTemplate, Repeat, Save } from 'lucide-react'
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { supabase } from '../../lib/supabase'
 
 const MEAL_SLOTS = ['Desayuno', 'Almuerzo / Comida', 'Merienda', 'Cena']
+const DAY_LABELS_FULL = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
 // ── Macro color scheme: protein=rose, carbs=sky, fat=amber ───
 const M = {
@@ -302,6 +303,423 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
   )
 }
 
+// ─── Save-as-template modal (used from Weekly planner) ─────────
+function SaveTemplateModal({ onSave, onClose }) {
+  const [name, setName] = useState('')
+  return (
+    <div className="card space-y-3" style={{ borderColor: 'color-mix(in srgb, var(--accent) 30%, transparent)' }}>
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-white">Guardar semana como plantilla</p>
+        <button onClick={onClose}><X size={15} className="text-zinc-500" /></button>
+      </div>
+      <input className="input" placeholder="Nombre de la plantilla (ej: Semana de volumen)" value={name}
+        onChange={e => setName(e.target.value)} autoFocus onKeyDown={e => e.key === 'Enter' && name.trim() && onSave(name.trim())} />
+      <div className="flex gap-2">
+        <button onClick={() => name.trim() && onSave(name.trim())} className="btn-primary"><Save size={14} /> Guardar</button>
+        <button onClick={onClose} className="btn-ghost">Cancelar</button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Apply-template modal ───────────────────────────────────────
+function ApplyTemplateModal({ template, onApply, onClose }) {
+  const [weeks, setWeeks] = useState(4)
+  const [startWeek, setStartWeek] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }))
+
+  return (
+    <div className="card space-y-3" style={{ borderColor: 'color-mix(in srgb, var(--accent) 30%, transparent)' }}>
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-white">Aplicar "{template.name}"</p>
+        <button onClick={onClose}><X size={15} className="text-zinc-500" /></button>
+      </div>
+
+      <div>
+        <label className="label">Semana de inicio</label>
+        <div className="flex items-center justify-between rounded-xl px-3 py-2" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <button onClick={() => setStartWeek(w => subWeeks(w, 1))} className="text-zinc-400 hover:text-white"><ChevronLeft size={16} /></button>
+          <p className="text-sm text-white font-medium">
+            {format(startWeek, "d MMM", { locale: es })} — {format(addDays(startWeek, 6), "d MMM", { locale: es })}
+          </p>
+          <button onClick={() => setStartWeek(w => addWeeks(w, 1))} className="text-zinc-400 hover:text-white"><ChevronRight size={16} /></button>
+        </div>
+      </div>
+
+      <div>
+        <label className="label">Repetir durante</label>
+        <div className="flex items-center gap-2">
+          <input className="input w-24" type="number" min="1" max="52" value={weeks}
+            onChange={e => setWeeks(parseInt(e.target.value) || 1)} />
+          <span className="text-sm" style={{ color: 'var(--text-muted)' }}>semana{weeks !== 1 ? 's' : ''}</span>
+        </div>
+      </div>
+
+      <p className="text-xs" style={{ color: 'var(--rose)' }}>
+        Esto reemplazará cualquier comida ya planificada en esas {weeks} semana{weeks !== 1 ? 's' : ''}.
+      </p>
+
+      <div className="flex gap-2">
+        <button onClick={() => onApply(startWeek, weeks)} className="btn-primary"><Repeat size={14} /> Aplicar {weeks} semana{weeks !== 1 ? 's' : ''}</button>
+        <button onClick={onClose} className="btn-ghost">Cancelar</button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Template editor (7 days × 4 slots, day-of-week based) ────
+function TemplateEditor({ template, recipes, onClose, onDeleted }) {
+  const [items, setItems]       = useState([])
+  const [loading, setLoading]   = useState(true)
+  const [addingTo, setAddingTo] = useState(null) // `${dow}_${slot}`
+  const [addForm, setAddForm]   = useState({ recipe_id: '', servings: '1' })
+  const [expandedCell, setExpandedCell] = useState(null)
+
+  useEffect(() => { load() }, [template.id])
+
+  async function load() {
+    setLoading(true)
+    const { data } = await supabase.from('meal_template_items').select('*').eq('template_id', template.id)
+    setItems(data || [])
+    setLoading(false)
+  }
+
+  function cellItems(dow, slot) {
+    return items.filter(i => i.day_of_week === dow && i.slot === slot)
+  }
+
+  async function addItem() {
+    if (!addForm.recipe_id || !addingTo) return
+    const [dowStr, ...slotParts] = addingTo.split('_')
+    const dow = parseInt(dowStr)
+    const slot = slotParts.join('_')
+    const recipe = recipes.find(r => r.id === addForm.recipe_id)
+    if (!recipe) return
+    const factor = parseFloat(addForm.servings) / (recipe.servings || 1)
+    const { data } = await supabase.from('meal_template_items').insert([{
+      template_id: template.id,
+      day_of_week: dow,
+      slot,
+      recipe_id: addForm.recipe_id,
+      recipe_name: recipe.name,
+      servings: parseFloat(addForm.servings),
+      calories: Math.round(recipe.calories_total * factor),
+      protein_g: +(recipe.protein_total * factor).toFixed(1),
+      carbs_g:   +(recipe.carbs_total   * factor).toFixed(1),
+      fat_g:     +(recipe.fat_total     * factor).toFixed(1),
+    }]).select().single()
+    if (data) setItems(prev => [...prev, data])
+    setAddingTo(null)
+    setAddForm({ recipe_id: '', servings: '1' })
+  }
+
+  async function removeItem(id) {
+    await supabase.from('meal_template_items').delete().eq('id', id)
+    setItems(prev => prev.filter(i => i.id !== id))
+  }
+
+  function onDrop(e, dow, slot) {
+    e.preventDefault()
+    const recipeId = e.dataTransfer.getData('recipeId')
+    if (!recipeId) return
+    setAddingTo(`${dow}_${slot}`)
+    setAddForm({ recipe_id: recipeId, servings: '1' })
+  }
+
+  function dayTotals(dow) {
+    return MEAL_SLOTS.reduce((acc, slot) => {
+      cellItems(dow, slot).forEach(it => {
+        acc.cal += it.calories || 0
+        acc.protein += it.protein_g || 0
+        acc.carbs += it.carbs_g || 0
+        acc.fat += it.fat_g || 0
+      })
+      return acc
+    }, { cal: 0, protein: 0, carbs: 0, fat: 0 })
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-semibold text-white">{template.name}</h3>
+          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Editando plantilla · selecciona cualquier comida para modificarla o eliminarla</p>
+        </div>
+        <button onClick={onClose} className="btn-ghost text-sm py-1.5"><X size={14} /> Cerrar</button>
+      </div>
+
+      {loading ? <p className="muted text-center py-8">Cargando...</p> : (
+        <div className="week-scroll"><div className="grid grid-cols-7 gap-1.5">
+          {DAY_LABELS_FULL.map((label, dow) => {
+            const totals = dayTotals(dow)
+            return (
+              <div key={dow} className="space-y-1">
+                <div className="week-day-header">
+                  <div className="text-zinc-400 uppercase tracking-wider" style={{ fontSize: '10px' }}>{label.slice(0, 3)}</div>
+                  {totals.cal > 0 && (
+                    <div className="mt-0.5"><MacroDots cal={totals.cal} protein={totals.protein} carbs={totals.carbs} fat={totals.fat} size="xs" /></div>
+                  )}
+                </div>
+                {MEAL_SLOTS.map(slot => {
+                  const key = `${dow}_${slot}`
+                  const cItems = cellItems(dow, slot)
+                  const isExpanded = expandedCell === key
+                  return (
+                    <div key={slot}
+                      onDragOver={e => e.preventDefault()}
+                      onDrop={e => onDrop(e, dow, slot)}
+                      onClick={() => setExpandedCell(isExpanded ? null : key)}
+                      style={cItems.length > 0 ? {
+                        background: 'rgba(124,106,247,0.12)',
+                        border: '1px solid rgba(124,106,247,0.35)',
+                      } : {
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                      }}
+                      className={`rounded-xl text-[10px] transition-all cursor-pointer min-h-[38px]
+                        hover:border-accent/50 hover:bg-accent/10
+                        ${isExpanded ? 'ring-1 ring-accent/60' : ''}`}>
+                      {!isExpanded && (
+                        <div className="p-1.5">
+                          {cItems.length === 0 ? (
+                            <p className="text-center leading-tight font-medium" style={{ color: 'rgba(255,255,255,0.25)', fontSize: '9px' }}>{slot.split('/')[0].trim()}</p>
+                          ) : (
+                            <div className="space-y-0.5">
+                              <p className="leading-tight font-semibold uppercase" style={{ color: 'rgba(124,106,247,0.8)', fontSize: '8px', letterSpacing: '0.05em' }}>{slot.split('/')[0].trim()}</p>
+                              {cItems.map(it => (
+                                <div key={it.id} className="leading-tight">
+                                  <p className="text-white truncate font-medium" style={{ fontSize: '12.5px' }}>{it.recipe_name}</p>
+                                  <MacroDots cal={it.calories || 0} protein={it.protein_g || 0} carbs={it.carbs_g || 0} fat={it.fat_g || 0} size="xs" />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {isExpanded && (
+                        <div className="p-2 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <p className="text-zinc-400 font-medium">{slot}</p>
+                            <button onClick={e => { e.stopPropagation(); setExpandedCell(null) }} className="text-zinc-600 hover:text-white"><X size={11} /></button>
+                          </div>
+                          {cItems.map(it => (
+                            <div key={it.id} className="flex items-center gap-1 group/it">
+                              <div className="flex-1 min-w-0">
+                                <p className="text-zinc-200 truncate">{it.recipe_name}</p>
+                                <MacroDots cal={it.calories || 0} protein={it.protein_g || 0} carbs={it.carbs_g || 0} fat={it.fat_g || 0} size="xs" />
+                              </div>
+                              <button onClick={e => { e.stopPropagation(); removeItem(it.id) }}
+                                className="opacity-0 group-hover/it:opacity-100 text-rose flex-shrink-0"><Trash2 size={10} /></button>
+                            </div>
+                          ))}
+                          <button onClick={e => { e.stopPropagation(); setAddingTo(key) }}
+                            className="btn-ghost text-[10px] py-0.5 w-full justify-center">
+                            <Plus size={10} /> añadir
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )
+          })}
+        </div></div>
+      )}
+
+      {/* Add-item modal */}
+      {addingTo && (
+        <div className="card space-y-3" style={{ borderColor: 'color-mix(in srgb, var(--accent) 30%, transparent)' }}>
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-medium text-white">
+              Añadir a {DAY_LABELS_FULL[parseInt(addingTo.split('_')[0])]} · {addingTo.split('_').slice(1).join(' ')}
+            </p>
+            <button onClick={() => setAddingTo(null)}><X size={15} className="text-zinc-500" /></button>
+          </div>
+          <select className="select" value={addForm.recipe_id} onChange={e => setAddForm(f => ({ ...f, recipe_id: e.target.value }))}>
+            <option value="">Selecciona una receta...</option>
+            {recipes.map(r => <option key={r.id} value={r.id}>{r.name} ({Math.round(r.calories_total)} kcal / {r.servings} ración)</option>)}
+          </select>
+          <div className="flex gap-2 items-center">
+            <label className="text-xs text-zinc-400 whitespace-nowrap">Raciones:</label>
+            <input className="input w-20" type="number" step="0.5" value={addForm.servings}
+              onChange={e => setAddForm(f => ({ ...f, servings: e.target.value }))} />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={addItem} className="btn-primary"><Check size={15} /> Añadir</button>
+            <button onClick={() => setAddingTo(null)} className="btn-ghost">Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {/* Drag hint */}
+      {recipes.length > 0 && (
+        <div className="card-sm">
+          <p className="text-xs text-zinc-500 mb-2">Arrastra una receta al día y comida que quieras:</p>
+          <div className="flex flex-wrap gap-1.5">
+            {recipes.map(r => (
+              <div key={r.id} draggable onDragStart={e => e.dataTransfer.setData('recipeId', r.id)}
+                className="badge bg-surface-300 text-zinc-300 cursor-grab active:cursor-grabbing text-xs">
+                {r.name}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Templates tab ────────────────────────────────────────────
+function TemplatesTab({ recipes }) {
+  const [templates, setTemplates] = useState([])
+  const [loading, setLoading]     = useState(true)
+  const [newName, setNewName]     = useState('')
+  const [showNewForm, setShowNewForm] = useState(false)
+  const [editingTemplate, setEditingTemplate] = useState(null)
+  const [applyingTemplate, setApplyingTemplate] = useState(null)
+  const [applyStatus, setApplyStatus] = useState(null)
+
+  useEffect(() => { load() }, [])
+
+  async function load() {
+    setLoading(true)
+    const { data: tmpls } = await supabase.from('meal_templates').select('*').order('created_at', { ascending: false })
+    const { data: allItems } = await supabase.from('meal_template_items').select('template_id')
+    const counts = {}
+    ;(allItems || []).forEach(i => { counts[i.template_id] = (counts[i.template_id] || 0) + 1 })
+    setTemplates((tmpls || []).map(t => ({ ...t, itemCount: counts[t.id] || 0 })))
+    setLoading(false)
+  }
+
+  async function createTemplate() {
+    if (!newName.trim()) return
+    const { data } = await supabase.from('meal_templates').insert([{ name: newName.trim() }]).select().single()
+    if (data) {
+      setTemplates(prev => [{ ...data, itemCount: 0 }, ...prev])
+      setEditingTemplate(data)
+    }
+    setNewName('')
+    setShowNewForm(false)
+  }
+
+  async function deleteTemplate(id) {
+    await supabase.from('meal_templates').delete().eq('id', id)
+    setTemplates(prev => prev.filter(t => t.id !== id))
+  }
+
+  async function applyTemplate(template, startWeek, weeks) {
+    setApplyStatus('applying')
+    const { data: items } = await supabase.from('meal_template_items').select('*').eq('template_id', template.id)
+
+    for (let w = 0; w < weeks; w++) {
+      const weekMonday = addWeeks(startWeek, w)
+      const from = format(weekMonday, 'yyyy-MM-dd')
+      const to   = format(addDays(weekMonday, 6), 'yyyy-MM-dd')
+      // Clear existing plan for this week
+      await supabase.from('meal_plan').delete().gte('date', from).lte('date', to)
+      // Insert template items mapped to real dates
+      const rows = (items || []).map(it => ({
+        date: format(addDays(weekMonday, it.day_of_week), 'yyyy-MM-dd'),
+        slot: it.slot,
+        recipe_id: it.recipe_id,
+        recipe_name: it.recipe_name,
+        servings: it.servings,
+        calories: it.calories,
+        protein_g: it.protein_g,
+        carbs_g: it.carbs_g,
+        fat_g: it.fat_g,
+      }))
+      if (rows.length > 0) await supabase.from('meal_plan').insert(rows)
+    }
+    setApplyStatus('done')
+    setTimeout(() => { setApplyStatus(null); setApplyingTemplate(null) }, 1800)
+  }
+
+  if (editingTemplate) {
+    return (
+      <TemplateEditor
+        template={editingTemplate}
+        recipes={recipes}
+        onClose={() => { setEditingTemplate(null); load() }}
+      />
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+          Crea una plantilla semanal editable y repítela durante varias semanas seguidas.
+        </p>
+        <button onClick={() => setShowNewForm(v => !v)} className="btn-primary text-sm py-1.5">
+          <Plus size={14} /> Nueva plantilla
+        </button>
+      </div>
+
+      {showNewForm && (
+        <div className="card space-y-3">
+          <input className="input" placeholder="Nombre de la plantilla (ej: Semana tipo)" value={newName}
+            onChange={e => setNewName(e.target.value)} autoFocus onKeyDown={e => e.key === 'Enter' && createTemplate()} />
+          <div className="flex gap-2">
+            <button onClick={createTemplate} className="btn-primary"><Check size={15} /> Crear y editar</button>
+            <button onClick={() => setShowNewForm(false)} className="btn-ghost">Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {applyingTemplate && (
+        applyStatus === 'applying' ? (
+          <div className="card text-center py-6">
+            <p className="text-sm text-white">Aplicando plantilla...</p>
+          </div>
+        ) : applyStatus === 'done' ? (
+          <div className="card text-center py-6" style={{ borderColor: 'color-mix(in srgb, var(--jade) 30%, transparent)' }}>
+            <p className="text-sm" style={{ color: 'var(--jade)' }}>✓ Plantilla aplicada. Revisa el Menú semanal.</p>
+          </div>
+        ) : (
+          <ApplyTemplateModal
+            template={applyingTemplate}
+            onApply={(startWeek, weeks) => applyTemplate(applyingTemplate, startWeek, weeks)}
+            onClose={() => setApplyingTemplate(null)}
+          />
+        )
+      )}
+
+      {loading ? (
+        <p className="muted text-center py-8">Cargando...</p>
+      ) : templates.length === 0 ? (
+        <div className="text-center py-10 space-y-2">
+          <p className="text-3xl">📋</p>
+          <p className="muted">Aún no tienes plantillas. Crea una para reutilizar tu semana de dieta.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {templates.map(t => (
+            <div key={t.id} className="card-sm flex items-center gap-3 group">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: 'color-mix(in srgb, var(--accent) 15%, transparent)' }}>
+                <LayoutTemplate size={16} style={{ color: 'var(--accent-bright)' }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white">{t.name}</p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{t.itemCount} comida{t.itemCount !== 1 ? 's' : ''} planificadas</p>
+              </div>
+              <div className="flex gap-1 flex-shrink-0">
+                <button onClick={() => setApplyingTemplate(t)} className="btn-ghost text-xs py-1 px-2 gap-1"
+                  title="Aplicar a varias semanas">
+                  <Repeat size={12} /> Aplicar
+                </button>
+                <button onClick={() => setEditingTemplate(t)} className="text-zinc-500 hover:text-accent-bright p-1.5"><Edit2 size={13} /></button>
+                <button onClick={() => deleteTemplate(t.id)} className="text-zinc-500 hover:text-rose p-1.5"><Trash2 size={13} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Weekly planner ───────────────────────────────────────────
 function WeeklyPlanner({ recipes, foods, weekStart, onNavigate }) {
   const [plan, setPlan]       = useState({})   // { 'YYYY-MM-DD_Slot': [{ recipe_id, servings }] }
@@ -310,6 +728,8 @@ function WeeklyPlanner({ recipes, foods, weekStart, onNavigate }) {
   const [addingTo, setAddingTo] = useState(null)  // 'YYYY-MM-DD_Slot'
   const [addForm, setAddForm]   = useState({ recipe_id: '', servings: '1' })
   const [editing, setEditing]   = useState(false)
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false)
+  const [saveStatus, setSaveStatus] = useState(null)
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
 
@@ -385,6 +805,37 @@ function WeeklyPlanner({ recipes, foods, weekStart, onNavigate }) {
     }, { cal: 0, protein: 0, carbs: 0, fat: 0 })
   }
 
+  async function saveAsTemplate(name) {
+    setSaveStatus('saving')
+    const { data: template } = await supabase.from('meal_templates').insert([{ name }]).select().single()
+    if (template) {
+      const rows = []
+      days.forEach((day, dow) => {
+        const dateStr = format(day, 'yyyy-MM-dd')
+        MEAL_SLOTS.forEach(slot => {
+          const items = plan[`${dateStr}_${slot}`] || []
+          items.forEach(it => {
+            rows.push({
+              template_id: template.id,
+              day_of_week: dow,
+              slot,
+              recipe_id: it.recipe_id,
+              recipe_name: it.recipe_name,
+              servings: it.servings,
+              calories: it.calories,
+              protein_g: it.protein_g,
+              carbs_g: it.carbs_g,
+              fat_g: it.fat_g,
+            })
+          })
+        })
+      })
+      if (rows.length > 0) await supabase.from('meal_template_items').insert(rows)
+    }
+    setSaveStatus('done')
+    setTimeout(() => { setSaveStatus(null); setShowSaveTemplate(false) }, 1600)
+  }
+
   return (
     <div className="space-y-4">
       {/* Week nav */}
@@ -396,13 +847,28 @@ function WeeklyPlanner({ recipes, foods, weekStart, onNavigate }) {
         <button onClick={() => onNavigate(1)} className="btn-ghost px-2"><ChevronRight size={16} /></button>
       </div>
 
-      {/* Edit mode toggle */}
-      <div className="flex justify-end">
+      {/* Edit mode toggle + save as template */}
+      <div className="flex justify-end gap-2">
+        <button onClick={() => setShowSaveTemplate(v => !v)} className="btn-ghost text-xs py-1 gap-1">
+          <Save size={12} /> Guardar como plantilla
+        </button>
         <button onClick={() => setEditing(v => !v)}
           className={`btn text-xs py-1 gap-1 ${editing ? 'btn-primary' : 'btn-ghost'}`}>
           <Edit2 size={12} /> {editing ? 'Terminando de editar' : 'Editar semana'}
         </button>
       </div>
+
+      {showSaveTemplate && (
+        saveStatus === 'saving' ? (
+          <div className="card text-center py-4"><p className="text-sm text-white">Guardando...</p></div>
+        ) : saveStatus === 'done' ? (
+          <div className="card text-center py-4" style={{ borderColor: 'color-mix(in srgb, var(--jade) 30%, transparent)' }}>
+            <p className="text-sm" style={{ color: 'var(--jade)' }}>✓ Plantilla guardada. Consúltala en la pestaña Plantillas.</p>
+          </div>
+        ) : (
+          <SaveTemplateModal onSave={saveAsTemplate} onClose={() => setShowSaveTemplate(false)} />
+        )
+      )}
 
       {/* Grid */}
       <div className="week-scroll"><div className="grid grid-cols-7 gap-1.5">
@@ -759,10 +1225,11 @@ export default function Nutrition() {
   }
 
   const TABS = [
-    { v: 'weekly',  l: 'Menú semanal',    icon: Calendar },
-    { v: 'daily',   l: 'Registro diario', icon: Flame },
-    { v: 'recipes', l: 'Recetas',         icon: BookOpen },
-    { v: 'foods',   l: 'Alimentos',       icon: Apple },
+    { v: 'weekly',    l: 'Menú semanal',    icon: Calendar },
+    { v: 'templates', l: 'Plantillas',      icon: LayoutTemplate },
+    { v: 'daily',     l: 'Registro diario', icon: Flame },
+    { v: 'recipes',   l: 'Recetas',         icon: BookOpen },
+    { v: 'foods',     l: 'Alimentos',       icon: Apple },
   ]
 
   return (
@@ -777,11 +1244,12 @@ export default function Nutrition() {
         ))}
       </div>
 
-      {tab === 'daily'   && <DailyLog foods={foods} recipes={recipes} />}
-      {tab === 'weekly'  && <WeeklyPlanner recipes={recipes} foods={foods} weekStart={weekStart}
-                              onNavigate={dir => setWeekStart(w => dir > 0 ? addWeeks(w, 1) : subWeeks(w, 1))} />}
-      {tab === 'recipes' && <RecipesTab recipes={recipes} foods={foods} onSave={saveRecipe} onUpdate={updateRecipe} onDelete={deleteRecipe} />}
-      {tab === 'foods'   && <FoodsTab foods={foods} onAdd={addFood} onUpdate={updateFood} onDelete={deleteFood} />}
+      {tab === 'daily'     && <DailyLog foods={foods} recipes={recipes} />}
+      {tab === 'weekly'    && <WeeklyPlanner recipes={recipes} foods={foods} weekStart={weekStart}
+                                onNavigate={dir => setWeekStart(w => dir > 0 ? addWeeks(w, 1) : subWeeks(w, 1))} />}
+      {tab === 'templates' && <TemplatesTab recipes={recipes} />}
+      {tab === 'recipes'   && <RecipesTab recipes={recipes} foods={foods} onSave={saveRecipe} onUpdate={updateRecipe} onDelete={deleteRecipe} />}
+      {tab === 'foods'     && <FoodsTab foods={foods} onAdd={addFood} onUpdate={updateFood} onDelete={deleteFood} />}
     </div>
   )
 }
