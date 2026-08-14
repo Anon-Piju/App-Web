@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, Flame, ChevronLeft, ChevronRight, Edit2, X, Check, BookOpen, Apple, Calendar, LayoutTemplate, Repeat, Save } from 'lucide-react'
+import { Plus, Trash2, Flame, ChevronLeft, ChevronRight, Edit2, X, Check, BookOpen, Apple, Calendar, LayoutTemplate, Repeat, Save, Search, ChefHat } from 'lucide-react'
 import { format, startOfWeek, addDays, addWeeks, subWeeks, isSameDay } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { supabase } from '../../lib/supabase'
@@ -150,34 +150,67 @@ function FoodsTab({ foods, onAdd, onDelete, onUpdate }) {
 function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
   const emptyForm = { name: '', servings: '1', ingredients: [] }
   const [form, setForm]         = useState(emptyForm)
+  const [ingType, setIngType]   = useState('food') // 'food' | 'recipe'
   const [ing, setIng]           = useState({ food_id: '', quantity: '', unit: 'g' })
+  const [ingRecipe, setIngRecipe] = useState({ recipe_id: '', quantity: '1' })
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
+  const [search, setSearch]     = useState('')
+
+  // Recursively resolves macros for a single ingredient, supporting nested recipes
+  function ingredientMacros(item) {
+    if (item.type === 'recipe') {
+      const rec = recipes.find(r => r.id === item.recipe_id)
+      if (!rec) return { cal: 0, protein: 0, carbs: 0, fat: 0 }
+      const factor = (parseFloat(item.quantity) || 0) / (rec.servings || 1)
+      return {
+        cal:     rec.calories_total * factor,
+        protein: rec.protein_total * factor,
+        carbs:   rec.carbs_total   * factor,
+        fat:     rec.fat_total     * factor,
+      }
+    }
+    // food (default / legacy ingredients without a type)
+    const food = foods.find(f => f.id === item.food_id)
+    if (!food) return { cal: 0, protein: 0, carbs: 0, fat: 0 }
+    const grams = item.unit === 'u' ? (parseFloat(item.quantity) || 0) * 100 : (parseFloat(item.quantity) || 0)
+    const factor = grams / 100
+    return {
+      cal:     food.calories_per_100g * factor,
+      protein: food.protein_per_100g  * factor,
+      carbs:   food.carbs_per_100g    * factor,
+      fat:     food.fat_per_100g      * factor,
+    }
+  }
 
   function calcMacros(ingredients) {
-    return ingredients.reduce((acc, ing) => {
-      const food = foods.find(f => f.id === ing.food_id)
-      if (!food) return acc
-      // If unit is 'u' (units), quantity means number of units; 1 unit = 100g base
-      const grams = ing.unit === 'u' ? parseFloat(ing.quantity) * 100 : parseFloat(ing.quantity)
-      const factor = grams / 100
-      return {
-        cal:     acc.cal     + food.calories_per_100g * factor,
-        protein: acc.protein + food.protein_per_100g  * factor,
-        carbs:   acc.carbs   + food.carbs_per_100g    * factor,
-        fat:     acc.fat     + food.fat_per_100g      * factor,
-      }
+    return ingredients.reduce((acc, item) => {
+      const m = ingredientMacros(item)
+      return { cal: acc.cal + m.cal, protein: acc.protein + m.protein, carbs: acc.carbs + m.carbs, fat: acc.fat + m.fat }
     }, { cal: 0, protein: 0, carbs: 0, fat: 0 })
   }
 
   function addIng() {
-    if (!ing.food_id || !ing.quantity) return
-    const food = foods.find(f => f.id === ing.food_id)
-    setForm(prev => ({
-      ...prev,
-      ingredients: [...prev.ingredients, { ...ing, id: Date.now(), food_name: food.name }]
-    }))
-    setIng({ food_id: '', quantity: '', unit: 'g' })
+    if (ingType === 'recipe') {
+      if (!ingRecipe.recipe_id || !ingRecipe.quantity) return
+      const rec = recipes.find(r => r.id === ingRecipe.recipe_id)
+      setForm(prev => ({
+        ...prev,
+        ingredients: [...prev.ingredients, {
+          type: 'recipe', recipe_id: ingRecipe.recipe_id, quantity: ingRecipe.quantity,
+          recipe_name: rec.name, id: Date.now(),
+        }]
+      }))
+      setIngRecipe({ recipe_id: '', quantity: '1' })
+    } else {
+      if (!ing.food_id || !ing.quantity) return
+      const food = foods.find(f => f.id === ing.food_id)
+      setForm(prev => ({
+        ...prev,
+        ingredients: [...prev.ingredients, { type: 'food', ...ing, id: Date.now(), food_name: food.name }]
+      }))
+      setIng({ food_id: '', quantity: '', unit: 'g' })
+    }
   }
 
   async function save() {
@@ -208,6 +241,11 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
 
   const m = form.ingredients.length > 0 ? calcMacros(form.ingredients) : null
 
+  // Recipes selectable as ingredients: exclude the recipe currently being edited (avoid direct self-reference)
+  const recipeOptions = recipes.filter(r => r.id !== editingId)
+
+  const filteredRecipes = recipes.filter(r => r.name.toLowerCase().includes(search.toLowerCase()))
+
   return (
     <div className="space-y-4">
       {!showForm ? (
@@ -226,43 +264,80 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
             <input className="input" placeholder="Raciones" type="number" value={form.servings}
               onChange={e => setForm(f => ({ ...f, servings: e.target.value }))} />
           </div>
+
           {/* Ingredient rows */}
-          {form.ingredients.map((ing, i) => {
-            const food = foods.find(f => f.id === ing.food_id)
-            return (
-              <div key={ing.id} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                <span className="flex-1 text-zinc-300">{food?.name}</span>
-                <span className="text-zinc-500 text-xs">{ing.quantity}{ing.unit === 'u' ? ' uds' : 'g'}</span>
-                <button onClick={() => setForm(f => ({ ...f, ingredients: f.ingredients.filter((_, idx) => idx !== i) }))}
-                  className="text-zinc-600 hover:text-rose"><Trash2 size={12} /></button>
-              </div>
-            )
-          })}
-          {/* Add ingredient row */}
-          <div className="grid grid-cols-12 gap-2">
-            <select className="select col-span-5" value={ing.food_id}
-              onChange={e => setIng(i => ({ ...i, food_id: e.target.value }))}>
-              <option value="">Ingrediente...</option>
-              {foods.map(f => <option key={f.id} value={f.id}>{f.name}{f.brand ? ` (${f.brand})` : ''}</option>)}
-            </select>
-            <input className="input col-span-3" placeholder="Cantidad" type="number" value={ing.quantity}
-              onChange={e => setIng(i => ({ ...i, quantity: e.target.value }))} />
-            {/* Unit toggle g / u */}
-            <div className="col-span-2 flex rounded-lg overflow-hidden border" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-              {['g','u'].map(u => (
-                <button key={u} onClick={() => setIng(i => ({ ...i, unit: u }))}
-                  className="flex-1 text-xs font-medium transition-all"
-                  style={{
-                    background: ing.unit === u ? 'var(--accent)' : 'rgba(255,255,255,0.04)',
-                    color: ing.unit === u ? '#fff' : 'rgba(255,255,255,0.4)',
-                  }}>
-                  {u}
-                </button>
-              ))}
+          {form.ingredients.map((item, i) => (
+            <div key={item.id} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
+              style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+              {item.type === 'recipe' && (
+                <ChefHat size={12} className="flex-shrink-0" style={{ color: 'var(--accent-bright)' }} />
+              )}
+              <span className="flex-1 text-zinc-300">{item.type === 'recipe' ? item.recipe_name : item.food_name}</span>
+              <span className="text-zinc-500 text-xs">
+                {item.type === 'recipe' ? `${item.quantity} ración${parseFloat(item.quantity) !== 1 ? 'es' : ''}` : `${item.quantity}${item.unit === 'u' ? ' uds' : 'g'}`}
+              </span>
+              <button onClick={() => setForm(f => ({ ...f, ingredients: f.ingredients.filter((_, idx) => idx !== i) }))}
+                className="text-zinc-600 hover:text-rose"><Trash2 size={12} /></button>
             </div>
-            <button onClick={addIng} className="col-span-2 btn-ghost px-2 justify-center"><Plus size={14} /></button>
+          ))}
+
+          {/* Ingredient type toggle: Alimento / Receta */}
+          <div className="flex rounded-lg overflow-hidden border w-fit" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+            {[{ v: 'food', l: 'Alimento' }, { v: 'recipe', l: 'Receta' }].map(({ v, l }) => (
+              <button key={v} onClick={() => setIngType(v)}
+                className="px-3 py-1 text-xs font-medium transition-all"
+                style={{
+                  background: ingType === v ? 'var(--accent)' : 'rgba(255,255,255,0.04)',
+                  color: ingType === v ? '#fff' : 'rgba(255,255,255,0.5)',
+                }}>
+                {l}
+              </button>
+            ))}
           </div>
+
+          {/* Add ingredient row — Food */}
+          {ingType === 'food' && (
+            <div className="grid grid-cols-12 gap-2">
+              <select className="select col-span-5" value={ing.food_id}
+                onChange={e => setIng(i => ({ ...i, food_id: e.target.value }))}>
+                <option value="">Ingrediente...</option>
+                {foods.map(f => <option key={f.id} value={f.id}>{f.name}{f.brand ? ` (${f.brand})` : ''}</option>)}
+              </select>
+              <input className="input col-span-3" placeholder="Cantidad" type="number" value={ing.quantity}
+                onChange={e => setIng(i => ({ ...i, quantity: e.target.value }))} />
+              <div className="col-span-2 flex rounded-lg overflow-hidden border" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
+                {['g','u'].map(u => (
+                  <button key={u} onClick={() => setIng(i => ({ ...i, unit: u }))}
+                    className="flex-1 text-xs font-medium transition-all"
+                    style={{
+                      background: ing.unit === u ? 'var(--accent)' : 'rgba(255,255,255,0.04)',
+                      color: ing.unit === u ? '#fff' : 'rgba(255,255,255,0.4)',
+                    }}>
+                    {u}
+                  </button>
+                ))}
+              </div>
+              <button onClick={addIng} className="col-span-2 btn-ghost px-2 justify-center"><Plus size={14} /></button>
+            </div>
+          )}
+
+          {/* Add ingredient row — Recipe */}
+          {ingType === 'recipe' && (
+            <div className="grid grid-cols-12 gap-2">
+              <select className="select col-span-7" value={ingRecipe.recipe_id}
+                onChange={e => setIngRecipe(i => ({ ...i, recipe_id: e.target.value }))}>
+                <option value="">Receta...</option>
+                {recipeOptions.map(r => <option key={r.id} value={r.id}>{r.name} ({Math.round(r.calories_total)} kcal / {r.servings} ración)</option>)}
+              </select>
+              <input className="input col-span-3" placeholder="Raciones" type="number" step="0.25" value={ingRecipe.quantity}
+                onChange={e => setIngRecipe(i => ({ ...i, quantity: e.target.value }))} />
+              <button onClick={addIng} className="col-span-2 btn-ghost px-2 justify-center"><Plus size={14} /></button>
+            </div>
+          )}
+          {ingType === 'recipe' && recipeOptions.length === 0 && (
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Aún no tienes otras recetas creadas para usar como ingrediente.</p>
+          )}
+
           {m && (
             <div className="flex items-center gap-1">
               <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Total:</span>
@@ -276,8 +351,14 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
         </div>
       )}
 
+      {/* Search bar */}
+      <div className="relative">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+        <input className="input pl-8" placeholder="Buscar receta..." value={search} onChange={e => setSearch(e.target.value)} />
+      </div>
+
       <div className="space-y-2">
-        {recipes.map(r => (
+        {filteredRecipes.map(r => (
           <div key={r.id} className="card-sm group flex items-start gap-3">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white">{r.name}</p>
@@ -287,7 +368,7 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
               </div>
               {r.ingredients?.length > 0 && (
                 <p className="text-[11px] text-zinc-700 mt-0.5 truncate">
-                  {r.ingredients.map(i => i.food_name).join(', ')}
+                  {r.ingredients.map(i => i.type === 'recipe' ? `🍳 ${i.recipe_name}` : i.food_name).join(', ')}
                 </p>
               )}
             </div>
@@ -297,7 +378,7 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
             </div>
           </div>
         ))}
-        {recipes.length === 0 && <p className="muted text-center py-4">Sin recetas aún.</p>}
+        {filteredRecipes.length === 0 && <p className="muted text-center py-4">{search ? 'Sin resultados.' : 'Sin recetas aún.'}</p>}
       </div>
     </div>
   )
