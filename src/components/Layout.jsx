@@ -121,7 +121,7 @@ function BottomBar() {
   const location = useLocation()
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 flex"
-      style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.08)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+      style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(255,255,255,0.08)', paddingBottom: 'env(safe-area-inset-bottom)', minHeight: '64px' }}>
       {MOBILE_NAV.map(({ to, icon: Icon, label, colorKey, center }) => {
         const isActive = to === '/' ? location.pathname === '/' : location.pathname.startsWith(to)
         const color = `var(--${colorKey})`
@@ -179,7 +179,7 @@ export default function Layout() {
   const accent = theme.accent
 
   return (
-    <div className="flex h-screen" style={{ background: 'var(--bg)' }}
+    <div className="flex" style={{ background: 'var(--bg)', height: '100dvh', minHeight: '-webkit-fill-available' }}
       onTouchStart={isMobile ? onTouchStart : undefined}
       onTouchEnd={isMobile ? onTouchEnd : undefined}>
 
@@ -210,7 +210,11 @@ export default function Layout() {
       )}
 
       <div className={`flex-1 flex flex-col ${isPlanner ? 'overflow-hidden' : 'overflow-y-auto'}`}
-        style={{ paddingBottom: isMobile && !isPlanner ? '70px' : 0 }}>
+        style={{
+          paddingBottom: isMobile && !isPlanner ? 'calc(64px + env(safe-area-inset-bottom))' : 0,
+          WebkitOverflowScrolling: 'touch',
+          overscrollBehaviorY: 'contain',
+        }}>
         {isMobile && (
           <div className="sticky top-0 z-30 flex items-center justify-between px-4 py-3 flex-shrink-0"
             style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -225,7 +229,6 @@ export default function Layout() {
         <div className={`fade-up flex-1 min-h-0 ${isPlanner ? 'flex flex-col overflow-hidden px-4 py-4' : isMobile ? 'px-4 py-4' : 'px-10 py-8 max-w-4xl mx-auto w-full'}`}>
           <Outlet />
         </div>
-        {isMobile && !isPlanner && <div style={{ height: '70px', flexShrink: 0 }} />}
       </div>
       {isMobile && <BottomBar />}
     </div>
