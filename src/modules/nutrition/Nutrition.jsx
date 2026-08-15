@@ -151,18 +151,18 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
   const emptyForm = { name: '', servings: '1', ingredients: [] }
   const [form, setForm]         = useState(emptyForm)
   const [ingType, setIngType]   = useState('food') // 'food' | 'recipe'
-  const [ing, setIng]           = useState({ food_id: '', quantity: '', unit: 'g' })
-  const [ingRecipe, setIngRecipe] = useState({ recipe_id: '', quantity: '1' })
+  const [ing, setIng]           = useState({ food_id: '', quantity: '' })
+  const [ingRecipe, setIngRecipe] = useState({ recipe_id: '', quantity: '' })
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [search, setSearch]     = useState('')
 
-  // Recursively resolves macros for a single ingredient, supporting nested recipes
+  // Resolves macros for a single ingredient — food (per 100g) or nested recipe (per its auto-computed total weight)
   function ingredientMacros(item) {
     if (item.type === 'recipe') {
       const rec = recipes.find(r => r.id === item.recipe_id)
-      if (!rec) return { cal: 0, protein: 0, carbs: 0, fat: 0 }
-      const factor = (parseFloat(item.quantity) || 0) / (rec.servings || 1)
+      if (!rec || !rec.total_grams) return { cal: 0, protein: 0, carbs: 0, fat: 0 }
+      const factor = (parseFloat(item.quantity) || 0) / rec.total_grams
       return {
         cal:     rec.calories_total * factor,
         protein: rec.protein_total * factor,
@@ -170,7 +170,7 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
         fat:     rec.fat_total     * factor,
       }
     }
-    // food (default / legacy ingredients without a type)
+    // food (legacy ingredients with unit 'u' still supported for backward compatibility)
     const food = foods.find(f => f.id === item.food_id)
     if (!food) return { cal: 0, protein: 0, carbs: 0, fat: 0 }
     const grams = item.unit === 'u' ? (parseFloat(item.quantity) || 0) * 100 : (parseFloat(item.quantity) || 0)
@@ -181,6 +181,11 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
       carbs:   food.carbs_per_100g    * factor,
       fat:     food.fat_per_100g      * factor,
     }
+  }
+
+  // Total weight of the recipe = sum of all ingredient quantities (all already in grams)
+  function calcTotalGrams(ingredients) {
+    return ingredients.reduce((sum, item) => sum + (parseFloat(item.quantity) || 0), 0)
   }
 
   function calcMacros(ingredients) {
@@ -194,6 +199,7 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
     if (ingType === 'recipe') {
       if (!ingRecipe.recipe_id || !ingRecipe.quantity) return
       const rec = recipes.find(r => r.id === ingRecipe.recipe_id)
+      if (rec.calories_total === undefined) return
       setForm(prev => ({
         ...prev,
         ingredients: [...prev.ingredients, {
@@ -201,15 +207,15 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
           recipe_name: rec.name, id: Date.now(),
         }]
       }))
-      setIngRecipe({ recipe_id: '', quantity: '1' })
+      setIngRecipe({ recipe_id: '', quantity: '' })
     } else {
       if (!ing.food_id || !ing.quantity) return
       const food = foods.find(f => f.id === ing.food_id)
       setForm(prev => ({
         ...prev,
-        ingredients: [...prev.ingredients, { type: 'food', ...ing, id: Date.now(), food_name: food.name }]
+        ingredients: [...prev.ingredients, { type: 'food', food_id: ing.food_id, quantity: ing.quantity, id: Date.now(), food_name: food.name }]
       }))
-      setIng({ food_id: '', quantity: '', unit: 'g' })
+      setIng({ food_id: '', quantity: '' })
     }
   }
 
@@ -219,6 +225,7 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
     const payload = {
       name: form.name.trim(),
       servings: parseFloat(form.servings) || 1,
+      total_grams: calcTotalGrams(form.ingredients) || null,
       ingredients: form.ingredients,
       calories_total: macros.cal,
       protein_total: macros.protein,
@@ -241,7 +248,7 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
 
   const m = form.ingredients.length > 0 ? calcMacros(form.ingredients) : null
 
-  // Recipes selectable as ingredients: exclude the recipe currently being edited (avoid direct self-reference)
+  // Recipes selectable as ingredients: exclude the one being edited. total_grams is auto-computed on save.
   const recipeOptions = recipes.filter(r => r.id !== editingId)
 
   const filteredRecipes = recipes.filter(r => r.name.toLowerCase().includes(search.toLowerCase()))
@@ -261,7 +268,7 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
           <div className="grid grid-cols-2 gap-2">
             <input className="input col-span-2" placeholder="Nombre de la receta" value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
-            <input className="input" placeholder="Raciones" type="number" value={form.servings}
+            <input className="input col-span-2" placeholder="Raciones" type="number" value={form.servings}
               onChange={e => setForm(f => ({ ...f, servings: e.target.value }))} />
           </div>
 
@@ -273,9 +280,7 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
                 <ChefHat size={12} className="flex-shrink-0" style={{ color: 'var(--accent-bright)' }} />
               )}
               <span className="flex-1 text-zinc-300">{item.type === 'recipe' ? item.recipe_name : item.food_name}</span>
-              <span className="text-zinc-500 text-xs">
-                {item.type === 'recipe' ? `${item.quantity} ración${parseFloat(item.quantity) !== 1 ? 'es' : ''}` : `${item.quantity}${item.unit === 'u' ? ' uds' : 'g'}`}
-              </span>
+              <span className="text-zinc-500 text-xs">{item.quantity}g</span>
               <button onClick={() => setForm(f => ({ ...f, ingredients: f.ingredients.filter((_, idx) => idx !== i) }))}
                 className="text-zinc-600 hover:text-rose"><Trash2 size={12} /></button>
             </div>
@@ -295,41 +300,33 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
             ))}
           </div>
 
-          {/* Add ingredient row — Food */}
+          {/* Add ingredient row — Food (grams only) */}
           {ingType === 'food' && (
             <div className="grid grid-cols-12 gap-2">
-              <select className="select col-span-5" value={ing.food_id}
+              <select className="select col-span-7" value={ing.food_id}
                 onChange={e => setIng(i => ({ ...i, food_id: e.target.value }))}>
                 <option value="">Ingrediente...</option>
                 {foods.map(f => <option key={f.id} value={f.id}>{f.name}{f.brand ? ` (${f.brand})` : ''}</option>)}
               </select>
-              <input className="input col-span-3" placeholder="Cantidad" type="number" value={ing.quantity}
+              <input className="input col-span-3" placeholder="Gramos" type="number" value={ing.quantity}
                 onChange={e => setIng(i => ({ ...i, quantity: e.target.value }))} />
-              <div className="col-span-2 flex rounded-lg overflow-hidden border" style={{ borderColor: 'rgba(255,255,255,0.1)' }}>
-                {['g','u'].map(u => (
-                  <button key={u} onClick={() => setIng(i => ({ ...i, unit: u }))}
-                    className="flex-1 text-xs font-medium transition-all"
-                    style={{
-                      background: ing.unit === u ? 'var(--accent)' : 'rgba(255,255,255,0.04)',
-                      color: ing.unit === u ? '#fff' : 'rgba(255,255,255,0.4)',
-                    }}>
-                    {u}
-                  </button>
-                ))}
-              </div>
               <button onClick={addIng} className="col-span-2 btn-ghost px-2 justify-center"><Plus size={14} /></button>
             </div>
           )}
 
-          {/* Add ingredient row — Recipe */}
+          {/* Add ingredient row — Recipe (treated like a food, using its own auto-calculated per-100g values) */}
           {ingType === 'recipe' && (
             <div className="grid grid-cols-12 gap-2">
               <select className="select col-span-7" value={ingRecipe.recipe_id}
                 onChange={e => setIngRecipe(i => ({ ...i, recipe_id: e.target.value }))}>
                 <option value="">Receta...</option>
-                {recipeOptions.map(r => <option key={r.id} value={r.id}>{r.name} ({Math.round(r.calories_total)} kcal / {r.servings} ración)</option>)}
+                {recipeOptions.map(r => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}{r.total_grams ? ` — ${Math.round(r.calories_total / r.total_grams * 100)} kcal/100g` : ''}
+                  </option>
+                ))}
               </select>
-              <input className="input col-span-3" placeholder="Raciones" type="number" step="0.25" value={ingRecipe.quantity}
+              <input className="input col-span-3" placeholder="Gramos" type="number" value={ingRecipe.quantity}
                 onChange={e => setIngRecipe(i => ({ ...i, quantity: e.target.value }))} />
               <button onClick={addIng} className="col-span-2 btn-ghost px-2 justify-center"><Plus size={14} /></button>
             </div>
@@ -364,7 +361,9 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
               <p className="text-sm font-medium text-white">{r.name}</p>
               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                 <MacroDots cal={r.calories_total} protein={r.protein_total} carbs={r.carbs_total} fat={r.fat_total} />
-                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>· {r.servings} ración{r.servings !== 1 ? 'es' : ''}</span>
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                  · {r.servings} ración{r.servings !== 1 ? 'es' : ''}{r.total_grams ? ` · ${r.total_grams}g total · ${Math.round(r.calories_total / r.total_grams * 100)} kcal/100g` : ''}
+                </span>
               </div>
               {r.ingredients?.length > 0 && (
                 <p className="text-[11px] text-zinc-700 mt-0.5 truncate">
@@ -383,6 +382,7 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
     </div>
   )
 }
+
 
 // ─── Save-as-template modal (used from Weekly planner) ─────────
 function SaveTemplateModal({ onSave, onClose }) {
