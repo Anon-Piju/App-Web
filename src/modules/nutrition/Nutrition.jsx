@@ -1291,6 +1291,7 @@ export default function Nutrition() {
     const { data } = await supabase.from('recipes').insert([{
       name: recipe.name,
       servings: recipe.servings,
+      total_grams: recipe.total_grams,
       ingredients: recipe.ingredients,
       calories_total: recipe.calories_total,
       protein_total: recipe.protein_total,
