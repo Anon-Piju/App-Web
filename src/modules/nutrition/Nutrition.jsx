@@ -157,12 +157,21 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
   const [editingId, setEditingId] = useState(null)
   const [search, setSearch]     = useState('')
 
-  // Resolves macros for a single ingredient — food (per 100g) or nested recipe (per its auto-computed total weight)
+  // Total weight of a recipe: prefer the stored value, but always fall back to recomputing
+  // live from its own ingredients — this way it works even for recipes saved before this fix.
+  function recipeTotalGrams(rec) {
+    if (rec.total_grams) return rec.total_grams
+    return (rec.ingredients || []).reduce((sum, i) => sum + (parseFloat(i.quantity) || 0), 0)
+  }
+
+  // Resolves macros for a single ingredient — food (per 100g) or nested recipe (per its total weight)
   function ingredientMacros(item) {
     if (item.type === 'recipe') {
       const rec = recipes.find(r => r.id === item.recipe_id)
-      if (!rec || !rec.total_grams) return { cal: 0, protein: 0, carbs: 0, fat: 0 }
-      const factor = (parseFloat(item.quantity) || 0) / rec.total_grams
+      if (!rec) return { cal: 0, protein: 0, carbs: 0, fat: 0 }
+      const totalG = recipeTotalGrams(rec)
+      if (!totalG) return { cal: 0, protein: 0, carbs: 0, fat: 0 }
+      const factor = (parseFloat(item.quantity) || 0) / totalG
       return {
         cal:     rec.calories_total * factor,
         protein: rec.protein_total * factor,
@@ -320,11 +329,14 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
               <select className="select col-span-7" value={ingRecipe.recipe_id}
                 onChange={e => setIngRecipe(i => ({ ...i, recipe_id: e.target.value }))}>
                 <option value="">Receta...</option>
-                {recipeOptions.map(r => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}{r.total_grams ? ` — ${Math.round(r.calories_total / r.total_grams * 100)} kcal/100g` : ''}
-                  </option>
-                ))}
+                {recipeOptions.map(r => {
+                  const totalG = recipeTotalGrams(r)
+                  return (
+                    <option key={r.id} value={r.id}>
+                      {r.name}{totalG ? ` — ${Math.round(r.calories_total / totalG * 100)} kcal/100g` : ' — sin ingredientes aún'}
+                    </option>
+                  )
+                })}
               </select>
               <input className="input col-span-3" placeholder="Gramos" type="number" value={ingRecipe.quantity}
                 onChange={e => setIngRecipe(i => ({ ...i, quantity: e.target.value }))} />
@@ -355,14 +367,16 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
       </div>
 
       <div className="space-y-2">
-        {filteredRecipes.map(r => (
+        {filteredRecipes.map(r => {
+          const totalG = recipeTotalGrams(r)
+          return (
           <div key={r.id} className="card-sm group flex items-start gap-3">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-white">{r.name}</p>
               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                 <MacroDots cal={r.calories_total} protein={r.protein_total} carbs={r.carbs_total} fat={r.fat_total} />
                 <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                  · {r.servings} ración{r.servings !== 1 ? 'es' : ''}{r.total_grams ? ` · ${r.total_grams}g total · ${Math.round(r.calories_total / r.total_grams * 100)} kcal/100g` : ''}
+                  · {r.servings} ración{r.servings !== 1 ? 'es' : ''}{totalG ? ` · ${totalG}g total · ${Math.round(r.calories_total / totalG * 100)} kcal/100g` : ''}
                 </span>
               </div>
               {r.ingredients?.length > 0 && (
@@ -376,7 +390,8 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
               <button onClick={() => onDelete(r.id)} className="text-zinc-500 hover:text-rose p-1"><Trash2 size={13} /></button>
             </div>
           </div>
-        ))}
+          )
+        })}
         {filteredRecipes.length === 0 && <p className="muted text-center py-4">{search ? 'Sin resultados.' : 'Sin recetas aún.'}</p>}
       </div>
     </div>
