@@ -209,8 +209,6 @@ export default function Layout() {
       <div id="app-scroll" className={isPlanner ? 'flex-1 flex flex-col overflow-hidden' : 'flex-1 overflow-y-auto'}
         style={{
           paddingBottom: isMobile && !isPlanner ? 'calc(64px + env(safe-area-inset-bottom))' : 0,
-          WebkitOverflowScrolling: 'touch',
-          overscrollBehaviorY: 'contain',
           scrollBehavior: 'smooth',
         }}>
         {isMobile && (
