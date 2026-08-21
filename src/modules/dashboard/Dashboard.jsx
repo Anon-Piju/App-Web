@@ -32,9 +32,9 @@ function StatCard({ label, value, sub, color, icon: Icon, to }) {
 }
 
 // Tasks widget: pending vs in-progress side by side, visually distinct with icons (no emojis)
-function TasksWidget({ pending, inProgress, total }) {
+function TasksWidget({ pending, inProgress, total, className }) {
   return (
-    <Link to="/tasks" className="card-sm">
+    <Link to="/tasks" className={`card-sm ${className || ''}`}>
       <div className="flex items-center justify-between mb-2">
         <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Tareas</p>
         <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.25)' }}>{total} en total</p>
@@ -178,11 +178,9 @@ export default function Dashboard() {
       ) : (
         <div className="space-y-3">
           <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Resumen de hoy</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3" style={{ alignItems: 'start' }}>
             {hasTasks && (
-              <div className="col-span-2 sm:col-span-1">
-                <TasksWidget pending={stats.tasks.pending} inProgress={stats.tasks.inProgress} total={stats.tasks.total} />
-              </div>
+              <TasksWidget pending={stats.tasks.pending} inProgress={stats.tasks.inProgress} total={stats.tasks.total} className="col-span-2 sm:col-span-1" />
             )}
             {otherCards.map((c, i) => <StatCard key={i} {...c} />)}
           </div>
