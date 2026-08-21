@@ -360,11 +360,11 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
             <div key={r.id} className="card-sm group flex items-start gap-3">
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white">{r.name}</p>
-                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                  <MacroDots cal={r.calories_total} protein={r.protein_total} carbs={r.carbs_total} fat={r.fat_total} />
-                  <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    · {r.servings} ración{r.servings !== 1 ? 'es' : ''} ·{' '}
-                    {Math.round(p.cal)}·{Math.round(p.protein)}·{Math.round(p.carbs)}·{Math.round(p.fat)} /100g
+                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                  <MacroDots cal={r.calories_total} protein={r.protein_total} carbs={r.carbs_total} fat={r.fat_total} size="xs" />
+                  <span style={{ color: 'rgba(255,255,255,0.18)', fontSize: '9px' }}>·</span>
+                  <span style={{ fontSize: '9px', fontWeight: 600, color: 'var(--text-muted)' }}>
+                    {Math.round(p.cal)}·{Math.round(p.protein)}·{Math.round(p.carbs)}·{Math.round(p.fat)}
                   </span>
                 </div>
                 {r.ingredients?.length > 0 && (

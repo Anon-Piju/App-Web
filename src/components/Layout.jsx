@@ -178,7 +178,7 @@ export default function Layout() {
   const accent = theme.accent
 
   return (
-    <div className="flex" style={{ background: 'var(--bg)', height: '100dvh', minHeight: '-webkit-fill-available' }}
+    <div className="flex" style={{ background: 'var(--bg)', position: 'fixed', inset: 0 }}
       onTouchStart={isMobile ? onTouchStart : undefined}
       onTouchEnd={isMobile ? onTouchEnd : undefined}>
 
@@ -231,7 +231,7 @@ export default function Layout() {
             the way up to the top of the screen, instead of stopping once it hits the
             bottom edge. Purely spacing — doesn't affect layout of short pages. */}
         {isMobile && !isPlanner && (
-          <div aria-hidden="true" style={{ height: 'calc(100dvh - 180px)', flexShrink: 0 }} />
+          <div aria-hidden="true" style={{ height: '55vh', flexShrink: 0 }} />
         )}
       </div>
 
