@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
-import { CheckSquare, Dumbbell, Flame, TrendingUp, Rocket, TrendingDown, Heart, Activity, CalendarDays, Scale, BookOpen } from 'lucide-react'
+import { CheckSquare, Dumbbell, Flame, TrendingUp, Rocket, TrendingDown, Heart, CalendarDays, Scale, BookOpen, Clock, RefreshCw } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { format, subDays, startOfWeek, endOfWeek, startOfMonth } from 'date-fns'
 
-// Unique colors — no repeats. Iniciativas gets a standout color, Finanzas takes the old Iniciativas green.
 const CATEGORY_CARDS = [
   { to: '/tasks',       icon: CheckSquare, label: 'Tareas',       color: '#a99cf9', bg: 'rgba(169,156,249,0.12)', border: 'rgba(169,156,249,0.2)', desc: 'Gestiona tus pendientes' },
   { to: '/health',      icon: Heart,       label: 'Salud',        color: '#f16b6b', bg: 'rgba(241,107,107,0.12)', border: 'rgba(241,107,107,0.2)', desc: 'Entreno · Nutrición · Peso', group: true },
@@ -30,6 +29,34 @@ function StatCard({ label, value, sub, color, icon: Icon, to }) {
     </div>
   )
   return to ? <Link to={to}>{inner}</Link> : inner
+}
+
+// Tasks widget: pending vs in-progress side by side, visually distinct with icons (no emojis)
+function TasksWidget({ pending, inProgress, total }) {
+  return (
+    <Link to="/tasks" className="card-sm">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Tareas</p>
+        <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.25)' }}>{total} en total</p>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="flex items-center gap-2 rounded-xl px-2.5 py-2" style={{ background: 'rgba(169,156,249,0.10)' }}>
+          <Clock size={16} style={{ color: '#a99cf9' }} className="flex-shrink-0" />
+          <div className="min-w-0">
+            <p className="text-lg font-bold text-white leading-none">{pending}</p>
+            <p className="text-[10px] mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>Pendientes</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 rounded-xl px-2.5 py-2" style={{ background: 'rgba(90,175,238,0.10)' }}>
+          <RefreshCw size={16} style={{ color: '#5aafee' }} className="flex-shrink-0" />
+          <div className="min-w-0">
+            <p className="text-lg font-bold text-white leading-none">{inProgress}</p>
+            <p className="text-[10px] mt-0.5 truncate" style={{ color: 'var(--text-muted)' }}>En proceso</p>
+          </div>
+        </div>
+      </div>
+    </Link>
+  )
 }
 
 export default function Dashboard() {
@@ -63,51 +90,48 @@ export default function Dashboard() {
       supabase.from('habit_logs').select('habit_id,date').gte('date', weekStart).lte('date', weekEnd),
     ])
 
-    const pending    = (tasks||[]).filter(t => t.status === 'pending').length
-    const inProgress = (tasks||[]).filter(t => t.status === 'progress').length
+    const pending    = (tasks || []).filter(t => t.status === 'pending').length
+    const inProgress = (tasks || []).filter(t => t.status === 'progress').length
 
     let streak = 0
     for (let i = 0; i < 90; i++) {
       const day = format(subDays(new Date(), i), 'yyyy-MM-dd')
-      const w = (workouts||[]).find(x => x.date === day)
+      const w = (workouts || []).find(x => x.date === day)
       if (!w) { if (i > 0) break } else if (w.split_id !== 'rest') streak++
     }
-    const trainedThisWeek = (workouts||[]).filter(w => w.date >= weekStart && w.date <= weekEnd && w.split_id !== 'rest').length
-    const nut = (nutToday||[]).reduce((a, r) => ({ cal: a.cal + (r.calories||0), protein: a.protein + (r.protein_g||0) }), { cal: 0, protein: 0 })
+    const trainedThisWeek = (workouts || []).filter(w => w.date >= weekStart && w.date <= weekEnd && w.split_id !== 'rest').length
+    const nut = (nutToday || []).reduce((a, r) => ({ cal: a.cal + (r.calories || 0), protein: a.protein + (r.protein_g || 0) }), { cal: 0, protein: 0 })
 
-    const income  = (transactions||[]).filter(t => t.type === 'income').reduce((a, t) => a + (t.amount||0), 0)
-    const expense = (transactions||[]).filter(t => t.type === 'expense').reduce((a, t) => a + (t.amount||0), 0)
+    const income  = (transactions || []).filter(t => t.type === 'income').reduce((a, t) => a + (t.amount || 0), 0)
+    const expense = (transactions || []).filter(t => t.type === 'expense').reduce((a, t) => a + (t.amount || 0), 0)
 
-    // Active = only researching, validating, active — NOT idea, NOT paused
-    const activeInits = (initiatives||[]).filter(i => ['researching','validating','active'].includes(i.status)).length
+    const activeInits = (initiatives || []).filter(i => ['researching', 'validating', 'active'].includes(i.status)).length
 
     const latestWeight = weightLogs?.[0]
-    const prevWeight   = weightLogs?.[1]
-    const weightDiff   = latestWeight && prevWeight ? (latestWeight.weight_kg - prevWeight.weight_kg) : null
+    const prevWeight    = weightLogs?.[1]
+    const weightDiff    = latestWeight && prevWeight ? (latestWeight.weight_kg - prevWeight.weight_kg) : null
 
-    const habitsCompleted = (habits||[]).filter(h => {
-      const logs = (habitLogs||[]).filter(l => l.habit_id === h.id)
+    const habitsCompleted = (habits || []).filter(h => {
+      const logs = (habitLogs || []).filter(l => l.habit_id === h.id)
       if (h.frequency === 'weekly') return logs.length > 0
       if (h.frequency === 'xweek') return logs.length >= (h.freq_days_per_week || 3)
       return logs.some(l => l.date === today)
     }).length
 
     setStats({
-      tasks: { pending, inProgress, total: (tasks||[]).length },
+      tasks: { pending, inProgress, total: (tasks || []).length },
       training: { streak, thisWeek: trainedThisWeek },
       nutrition: nut,
       finance: { income, expense, balance: income - expense },
       initiatives: { active: activeInits },
       weight: latestWeight ? { kg: latestWeight.weight_kg, diff: weightDiff } : null,
-      habits: { done: habitsCompleted, total: (habits||[]).length },
+      habits: { done: habitsCompleted, total: (habits || []).length },
     })
   }
 
-  function getStatCards() {
+  function getOtherStatCards() {
     if (!stats) return []
     const cards = []
-    if (stats.tasks.pending > 0 || stats.tasks.inProgress > 0)
-      cards.push({ icon: CheckSquare, color: '#a99cf9', label: 'Tareas pendientes', value: stats.tasks.pending, sub: stats.tasks.inProgress > 0 ? `${stats.tasks.inProgress} en proceso` : `de ${stats.tasks.total}`, to: '/tasks' })
     if (stats.training.streak > 0 || stats.training.thisWeek > 0)
       cards.push({ icon: Dumbbell, color: '#f16b6b', label: stats.training.streak > 0 ? 'Racha entreno' : 'Entrenos semana', value: stats.training.streak > 0 ? `${stats.training.streak}🔥` : stats.training.thisWeek, sub: `${stats.training.thisWeek} días esta semana`, to: '/health' })
     if (stats.nutrition.cal > 0)
@@ -123,7 +147,9 @@ export default function Dashboard() {
     return cards
   }
 
-  const statCards = getStatCards()
+  const otherCards = getOtherStatCards()
+  const hasTasks = stats && stats.tasks.total > 0
+  const hasAnyData = stats && (hasTasks || otherCards.length > 0)
 
   return (
     <div className="space-y-7">
@@ -132,11 +158,9 @@ export default function Dashboard() {
         <h1 className="text-3xl font-semibold text-white mt-1">Bienvenido de vuelta 👋</h1>
       </div>
 
-      {/* Category cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {CATEGORY_CARDS.map(({ to, icon: Icon, label, color, bg, border, desc, group }) => (
-          <Link key={to} to={to} className="rounded-2xl p-4 transition-all hover:scale-[1.02]"
-            style={{ background: bg, border: `1px solid ${border}` }}>
+          <Link key={to} to={to} className="rounded-2xl p-4 transition-all hover:scale-[1.02]" style={{ background: bg, border: `1px solid ${border}` }}>
             <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3" style={{ background: bg, border: `1px solid ${border}` }}>
               <Icon size={18} style={{ color }} />
             </div>
@@ -147,16 +171,20 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Live stats */}
       {!stats ? (
         <div className="card"><p className="muted text-center py-3 text-sm">Cargando resumen...</p></div>
-      ) : statCards.length === 0 ? (
+      ) : !hasAnyData ? (
         <div className="card"><p className="muted text-center py-3 text-sm">Empieza a registrar datos para ver tu resumen aquí.</p></div>
       ) : (
         <div className="space-y-3">
           <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Resumen de hoy</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {statCards.map((c, i) => <StatCard key={i} {...c} />)}
+            {hasTasks && (
+              <div className="col-span-2 sm:col-span-1">
+                <TasksWidget pending={stats.tasks.pending} inProgress={stats.tasks.inProgress} total={stats.tasks.total} />
+              </div>
+            )}
+            {otherCards.map((c, i) => <StatCard key={i} {...c} />)}
           </div>
         </div>
       )}

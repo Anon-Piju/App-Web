@@ -59,13 +59,10 @@ function GroupNavItem({ group, onItemClick }) {
   useEffect(() => { if (isAnyActive) setOpen(true) }, [isAnyActive])
   return (
     <div>
-      <NavLink to={group.to}
-        className={`nav-item ${isGroupHome ? 'active' : ''}`}
-        style={isAnyActive ? { color } : {}}>
+      <NavLink to={group.to} className={`nav-item ${isGroupHome ? 'active' : ''}`} style={isAnyActive ? { color } : {}}>
         <group.icon size={16} style={isAnyActive ? { color } : {}} />
         <span className="flex-1 text-sm text-left">{group.label}</span>
-        <button onClick={e => { e.preventDefault(); e.stopPropagation(); setOpen(v => !v) }}
-          className="p-0.5 hover:bg-white/5 rounded">
+        <button onClick={e => { e.preventDefault(); e.stopPropagation(); setOpen(v => !v) }} className="p-0.5 hover:bg-white/5 rounded">
           <ChevronDown size={13} style={{ color: 'var(--text-muted)', transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
         </button>
       </NavLink>
@@ -81,8 +78,7 @@ function GroupNavItem({ group, onItemClick }) {
 function SidebarContent({ appName, onLogoClick, onClose, isMobile, accent }) {
   return (
     <>
-      <div className="px-4 py-4 flex items-center justify-between flex-shrink-0"
-        style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="px-4 py-4 flex items-center justify-between flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
         <button onClick={onLogoClick} className="flex items-center gap-3 hover:opacity-85 transition-opacity text-left flex-1 min-w-0">
           <div className="flex-shrink-0 rounded-xl flex items-center justify-center"
             style={{ width: 36, height: 36, background: `radial-gradient(circle at 40% 40%, ${accent}30, transparent)`, border: `1px solid ${accent}40`, boxShadow: `0 0 16px ${accent}30` }}>
@@ -96,25 +92,24 @@ function SidebarContent({ appName, onLogoClick, onClose, isMobile, accent }) {
         {isMobile && <button onClick={onClose} className="text-zinc-500 hover:text-white p-1 ml-2 flex-shrink-0"><X size={18} /></button>}
       </div>
       <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-        {NAV_GROUPS.map((item, i) =>
-          item.single
-            ? <NavItem key={item.to} {...item} onClick={onClose} />
-            : <GroupNavItem key={i} group={item} onItemClick={onClose} />
+        {NAV_GROUPS.map((item, i) => item.single
+          ? <NavItem key={item.to} {...item} onClick={onClose} />
+          : <GroupNavItem key={i} group={item} onItemClick={onClose} />
         )}
       </nav>
       <div className="px-4 py-3 flex-shrink-0" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.18)' }}>v1.10.0 · local</p>
+        <p className="text-xs" style={{ color: 'rgba(255,255,255,0.18)' }}>v1.11.0 · local</p>
       </div>
     </>
   )
 }
 
 const MOBILE_NAV = [
-  { to: '/tasks',       icon: CheckSquare,     label: 'Tareas',    colorKey: 'accent' },
-  { to: '/health',      icon: Heart,           label: 'Salud',     colorKey: 'rose'   },
-  { to: '/',            icon: LayoutDashboard, label: 'Inicio',    colorKey: 'accent', center: true },
-  { to: '/finance',     icon: TrendingUp,      label: 'Finanzas',  colorKey: 'jade'   },
-  { to: '/planner',     icon: CalendarDays,    label: 'Plan',      colorKey: 'sky'    },
+  { to: '/tasks',    icon: CheckSquare,     label: 'Tareas',    colorKey: 'accent' },
+  { to: '/health',   icon: Heart,           label: 'Salud',     colorKey: 'rose'   },
+  { to: '/',         icon: LayoutDashboard, label: 'Inicio',    colorKey: 'accent', center: true },
+  { to: '/finance',  icon: TrendingUp,      label: 'Finanzas',  colorKey: 'jade'   },
+  { to: '/planner',  icon: CalendarDays,    label: 'Plan',      colorKey: 'sky'    },
 ]
 
 function BottomBar() {
@@ -161,6 +156,10 @@ export default function Layout() {
     return () => window.removeEventListener('resize', check)
   }, [])
   useEffect(() => { if (isMobile) setSidebarOpen(false) }, [location.pathname])
+  // Scroll to top whenever the route changes
+  useEffect(() => {
+    document.getElementById('app-scroll')?.scrollTo({ top: 0 })
+  }, [location.pathname])
 
   function handleThemeChange(t) { setTheme(t); saveTheme(t); applyTheme(t) }
   function handleNameChange(n)  { setAppName(n); localStorage.setItem('orbit_app_name', n) }
@@ -184,9 +183,7 @@ export default function Layout() {
       onTouchEnd={isMobile ? onTouchEnd : undefined}>
 
       {settingsOpen && (
-        <SettingsModal currentTheme={theme} appName={appName}
-          onThemeChange={handleThemeChange} onNameChange={handleNameChange}
-          onClose={() => setSettingsOpen(false)} />
+        <SettingsModal currentTheme={theme} appName={appName} onThemeChange={handleThemeChange} onNameChange={handleNameChange} onClose={() => setSettingsOpen(false)} />
       )}
 
       {!isMobile && (
@@ -209,11 +206,12 @@ export default function Layout() {
         </div>
       )}
 
-      <div className={`flex-1 flex flex-col ${isPlanner ? 'overflow-hidden' : 'overflow-y-auto'}`}
+      <div id="app-scroll" className={`flex-1 flex flex-col ${isPlanner ? 'overflow-hidden' : 'overflow-y-auto'}`}
         style={{
           paddingBottom: isMobile && !isPlanner ? 'calc(64px + env(safe-area-inset-bottom))' : 0,
           WebkitOverflowScrolling: 'touch',
           overscrollBehaviorY: 'contain',
+          scrollBehavior: 'smooth',
         }}>
         {isMobile && (
           <div className="sticky top-0 z-30 flex items-center justify-between px-4 py-3 flex-shrink-0"
@@ -229,7 +227,14 @@ export default function Layout() {
         <div className={`fade-up flex-1 min-h-0 ${isPlanner ? 'flex flex-col overflow-hidden px-4 py-4' : isMobile ? 'px-4 py-4' : 'px-10 py-8 max-w-4xl mx-auto w-full'}`}>
           <Outlet />
         </div>
+        {/* Extra scroll room on mobile: lets the last item in any list be scrolled all
+            the way up to the top of the screen, instead of stopping once it hits the
+            bottom edge. Purely spacing — doesn't affect layout of short pages. */}
+        {isMobile && !isPlanner && (
+          <div aria-hidden="true" style={{ height: 'calc(100dvh - 180px)', flexShrink: 0 }} />
+        )}
       </div>
+
       {isMobile && <BottomBar />}
     </div>
   )

@@ -86,6 +86,7 @@ function FoodsTab({ foods, onAdd, onDelete, onUpdate }) {
   }
 
   function startEdit(f) {
+    document.getElementById('app-scroll')?.scrollTo({ top: 0, behavior: 'smooth' })
     setEditing(f.id)
     setForm({ name: f.name, brand: f.brand || '', cal: String(f.calories_per_100g),
       protein: String(f.protein_per_100g), carbs: String(f.carbs_per_100g), fat: String(f.fat_per_100g) })
@@ -253,6 +254,7 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
   }
 
   function startEdit(r) {
+    document.getElementById('app-scroll')?.scrollTo({ top: 0, behavior: 'smooth' })
     setEditingId(r.id)
     setForm({ name: r.name, servings: String(r.servings), ingredients: r.ingredients || [] })
     setShowForm(true)
@@ -361,7 +363,8 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
                 <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                   <MacroDots cal={r.calories_total} protein={r.protein_total} carbs={r.carbs_total} fat={r.fat_total} />
                   <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    · {r.servings} ración{r.servings !== 1 ? 'es' : ''} · {Math.round(p.cal)} kcal/100g
+                    · {r.servings} ración{r.servings !== 1 ? 'es' : ''} ·{' '}
+                    {Math.round(p.cal)}·{Math.round(p.protein)}·{Math.round(p.carbs)}·{Math.round(p.fat)} /100g
                   </span>
                 </div>
                 {r.ingredients?.length > 0 && (
