@@ -206,7 +206,7 @@ export default function Layout() {
         </div>
       )}
 
-      <div id="app-scroll" className={`flex-1 flex flex-col ${isPlanner ? 'overflow-hidden' : 'overflow-y-auto'}`}
+      <div id="app-scroll" className={isPlanner ? 'flex-1 flex flex-col overflow-hidden' : 'flex-1 overflow-y-auto'}
         style={{
           paddingBottom: isMobile && !isPlanner ? 'calc(64px + env(safe-area-inset-bottom))' : 0,
           WebkitOverflowScrolling: 'touch',
@@ -214,7 +214,7 @@ export default function Layout() {
           scrollBehavior: 'smooth',
         }}>
         {isMobile && (
-          <div className="sticky top-0 z-30 flex items-center justify-between px-4 py-3 flex-shrink-0"
+          <div className="sticky top-0 z-30 flex items-center justify-between px-4 py-3"
             style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             <button onClick={() => setSidebarOpen(true)} className="btn-ghost px-2 py-1.5"><Menu size={20} /></button>
             <button onClick={handleLogoClick} className="flex items-center gap-2">
@@ -224,14 +224,15 @@ export default function Layout() {
             <div className="w-8" />
           </div>
         )}
-        <div className={`fade-up flex-1 min-h-0 ${isPlanner ? 'flex flex-col overflow-hidden px-4 py-4' : isMobile ? 'px-4 py-4' : 'px-10 py-8 max-w-4xl mx-auto w-full'}`}>
+        <div className={`fade-up ${isPlanner ? 'flex flex-col overflow-hidden px-4 py-4 flex-1 min-h-0' : isMobile ? 'px-4 py-4' : 'px-10 py-8 max-w-4xl mx-auto w-full'}`}>
           <Outlet />
         </div>
-        {/* Extra scroll room on mobile: lets the last item in any list be scrolled all
-            the way up to the top of the screen, instead of stopping once it hits the
-            bottom edge. Purely spacing — doesn't affect layout of short pages. */}
+        {/* Extra scroll room on mobile: since the content above now grows to its
+            natural height (no longer squeezed into a flex-1 box), this genuinely
+            lets the last item of any list be scrolled all the way to the top of
+            the screen instead of stopping once the list ends. */}
         {isMobile && !isPlanner && (
-          <div aria-hidden="true" style={{ height: '55vh', flexShrink: 0 }} />
+          <div aria-hidden="true" style={{ height: '55vh' }} />
         )}
       </div>
 
