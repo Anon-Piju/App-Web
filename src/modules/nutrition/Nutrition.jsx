@@ -71,7 +71,8 @@ function FoodsTab({ foods, onAdd, onDelete, onUpdate }) {
   const [editing, setEditing] = useState(null)
 
   async function save() {
-    if (!form.name.trim() || !form.cal) return
+    console.log('[FoodsTab] save() called, form:', form)
+    if (!form.name.trim() || !form.cal) { console.log('[FoodsTab] blocked by guard — name or cal empty'); return }
     const payload = {
       name: form.name.trim(),
       brand: form.brand.trim() || null,
@@ -80,8 +81,10 @@ function FoodsTab({ foods, onAdd, onDelete, onUpdate }) {
       carbs_per_100g: parseFloat(form.carbs) || 0,
       fat_per_100g: parseFloat(form.fat) || 0,
     }
+    console.log('[FoodsTab] payload ready, calling onAdd/onUpdate:', payload)
     if (editing) { await onUpdate(editing, payload); setEditing(null) }
     else { await onAdd(payload) }
+    console.log('[FoodsTab] onAdd/onUpdate finished')
     setForm(emptyForm)
   }
 
@@ -230,7 +233,8 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
   }
 
   async function save() {
-    if (!form.name.trim() || form.ingredients.length === 0) return
+    console.log('[RecipesTab] save() called — name:', form.name, 'ingredients:', form.ingredients.length)
+    if (!form.name.trim() || form.ingredients.length === 0) { console.log('[RecipesTab] blocked by guard — missing name or zero ingredients'); return }
     const macros = calcMacros(form.ingredients)
     const totalG = calcTotalGrams(form.ingredients)
     const payload = {
@@ -247,8 +251,10 @@ function RecipesTab({ recipes, foods, onSave, onUpdate, onDelete }) {
       carbs_per_100g:    totalG ? macros.carbs / totalG * 100 : null,
       fat_per_100g:      totalG ? macros.fat / totalG * 100 : null,
     }
+    console.log('[RecipesTab] payload ready, calling onSave/onUpdate:', payload)
     if (editingId) { await onUpdate(editingId, payload); setEditingId(null) }
     else { await onSave(payload) }
+    console.log('[RecipesTab] onSave/onUpdate finished')
     setForm(emptyForm)
     setShowForm(false)
   }
@@ -1136,7 +1142,9 @@ export default function Nutrition() {
     setRecipes(data || [])
   }
   async function addFood(food) {
+    console.log('[Nutrition] addFood() called with:', food)
     const { data, error } = await supabase.from('foods').insert([food]).select().single()
+    console.log('[Nutrition] addFood() supabase response — data:', data, 'error:', error)
     if (error) { console.error('addFood error:', error); alert('No se pudo guardar el alimento: ' + error.message); return }
     if (data) setFoods(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
   }
@@ -1156,7 +1164,9 @@ export default function Nutrition() {
     if (data) setFoods(prev => prev.map(f => f.id === id ? data : f).sort((a, b) => a.name.localeCompare(b.name)))
   }
   async function saveRecipe(recipe) {
+    console.log('[Nutrition] saveRecipe() called with:', recipe)
     const { data, error } = await supabase.from('recipes').insert([recipe]).select().single()
+    console.log('[Nutrition] saveRecipe() supabase response — data:', data, 'error:', error)
     if (error) { console.error('saveRecipe error:', error); alert('No se pudo guardar la receta: ' + error.message); return }
     if (data) setRecipes(prev => [...prev, data])
   }
