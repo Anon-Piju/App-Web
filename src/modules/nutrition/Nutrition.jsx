@@ -498,11 +498,10 @@ function ApplyTemplateModal({ template, onApply, onClose }) {
 }
 
 // ─── Template editor (day-of-week based, recipes only for now) ─
-function TemplateEditor({ template, recipes, onClose }) {
+function TemplateEditor({ template, recipes, foods, onClose }) {
   const [items, setItems]       = useState([])
   const [loading, setLoading]   = useState(true)
   const [addingTo, setAddingTo] = useState(null)
-  const [addForm, setAddForm]   = useState({ recipe_id: '', servings: '1' })
   const [expandedCell, setExpandedCell] = useState(null)
 
   useEffect(() => { load() }, [template.id])
@@ -515,17 +514,17 @@ function TemplateEditor({ template, recipes, onClose }) {
   }
 
   function cellItems(dow, slot) { return items.filter(i => i.day_of_week === dow && i.slot === slot) }
+  function itemLabel(it) { return it.type === 'food' ? it.food_name : it.recipe_name }
 
-  async function addItem() {
-    if (!addForm.recipe_id || !addingTo) return
+  async function addRecipeItem(recipeForm) {
     const [dowStr, ...slotParts] = addingTo.split('_')
     const dow = parseInt(dowStr), slot = slotParts.join('_')
-    const recipe = recipes.find(r => r.id === addForm.recipe_id)
+    const recipe = recipes.find(r => r.id === recipeForm.recipe_id)
     if (!recipe) return
-    const factor = parseFloat(addForm.servings) / (recipe.servings || 1)
+    const factor = parseFloat(recipeForm.servings) / (recipe.servings || 1)
     const { data } = await supabase.from('meal_template_items').insert([{
       template_id: template.id, day_of_week: dow, slot, type: 'recipe',
-      recipe_id: addForm.recipe_id, recipe_name: recipe.name, servings: parseFloat(addForm.servings),
+      recipe_id: recipeForm.recipe_id, recipe_name: recipe.name, servings: parseFloat(recipeForm.servings),
       calories: Math.round(recipe.calories_total * factor),
       protein_g: +(recipe.protein_total * factor).toFixed(1),
       carbs_g:   +(recipe.carbs_total   * factor).toFixed(1),
@@ -533,7 +532,24 @@ function TemplateEditor({ template, recipes, onClose }) {
     }]).select().single()
     if (data) setItems(prev => [...prev, data])
     setAddingTo(null)
-    setAddForm({ recipe_id: '', servings: '1' })
+  }
+
+  async function addFoodItem(foodForm) {
+    const [dowStr, ...slotParts] = addingTo.split('_')
+    const dow = parseInt(dowStr), slot = slotParts.join('_')
+    const food = foods.find(f => f.id === foodForm.food_id)
+    if (!food) return
+    const factor = parseFloat(foodForm.quantity) / 100
+    const { data } = await supabase.from('meal_template_items').insert([{
+      template_id: template.id, day_of_week: dow, slot, type: 'food',
+      food_id: foodForm.food_id, food_name: food.name, quantity_g: parseFloat(foodForm.quantity),
+      calories: Math.round(food.calories_per_100g * factor),
+      protein_g: +(food.protein_per_100g * factor).toFixed(1),
+      carbs_g:   +(food.carbs_per_100g   * factor).toFixed(1),
+      fat_g:     +(food.fat_per_100g     * factor).toFixed(1),
+    }]).select().single()
+    if (data) setItems(prev => [...prev, data])
+    setAddingTo(null)
   }
 
   async function removeItem(id) {
@@ -589,7 +605,7 @@ function TemplateEditor({ template, recipes, onClose }) {
                               <p className="leading-tight font-semibold uppercase" style={{ color: 'rgba(124,106,247,0.8)', fontSize: '8px', letterSpacing: '0.05em' }}>{slot}</p>
                               {cItems.map(it => (
                                 <div key={it.id} className="leading-tight">
-                                  <p className="text-white truncate font-medium" style={{ fontSize: '12.5px' }}>{it.recipe_name}</p>
+                                  <p className="text-white truncate font-medium" style={{ fontSize: '12.5px' }}>{itemLabel(it)}</p>
                                   <MacroDots cal={it.calories} protein={it.protein_g} carbs={it.carbs_g} fat={it.fat_g} size="xs" />
                                 </div>
                               ))}
@@ -606,7 +622,7 @@ function TemplateEditor({ template, recipes, onClose }) {
                           {cItems.map(it => (
                             <div key={it.id} className="flex items-center gap-1 group/it">
                               <div className="flex-1 min-w-0">
-                                <p className="text-zinc-200 truncate">{it.recipe_name}</p>
+                                <p className="text-zinc-200 truncate">{itemLabel(it)}{it.type === 'food' ? ` · ${it.quantity_g}g` : ''}</p>
                                 <MacroDots cal={it.calories} protein={it.protein_g} carbs={it.carbs_g} fat={it.fat_g} size="xs" />
                               </div>
                               <button onClick={e => { e.stopPropagation(); removeItem(it.id) }} className="opacity-0 group-hover/it:opacity-100 text-rose flex-shrink-0"><Trash2 size={10} /></button>
@@ -625,31 +641,19 @@ function TemplateEditor({ template, recipes, onClose }) {
       )}
 
       {addingTo && (
-        <div className="card space-y-3" style={{ borderColor: 'color-mix(in srgb, var(--accent) 30%, transparent)' }}>
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-white">Añadir a {DAY_LABELS_FULL[parseInt(addingTo.split('_')[0])]} · {addingTo.split('_').slice(1).join(' ')}</p>
-            <button onClick={() => setAddingTo(null)}><X size={15} className="text-zinc-500" /></button>
-          </div>
-          <select className="select" value={addForm.recipe_id} onChange={e => setAddForm(f => ({ ...f, recipe_id: e.target.value }))}>
-            <option value="">Selecciona una receta...</option>
-            {recipes.map(r => <option key={r.id} value={r.id}>{r.name} ({Math.round(r.calories_total)} kcal / {r.servings} ración)</option>)}
-          </select>
-          <div className="flex gap-2 items-center">
-            <label className="text-xs text-zinc-400 whitespace-nowrap">Raciones:</label>
-            <input className="input w-20" type="number" step="0.5" value={addForm.servings} onChange={e => setAddForm(f => ({ ...f, servings: e.target.value }))} />
-          </div>
-          <div className="flex gap-2">
-            <button onClick={addItem} className="btn-primary"><Check size={15} /> Añadir</button>
-            <button onClick={() => setAddingTo(null)} className="btn-ghost">Cancelar</button>
-          </div>
-        </div>
+        <AddMealItemModal
+          slotLabel={`${DAY_LABELS_FULL[parseInt(addingTo.split('_')[0])]} · ${addingTo.split('_').slice(1).join(' ')}`}
+          foods={foods} recipes={recipes}
+          onAddRecipe={addRecipeItem}
+          onAddFood={addFoodItem}
+          onClose={() => setAddingTo(null)}
+        />
       )}
     </div>
   )
 }
 
-// ─── Templates tab ────────────────────────────────────────────
-function TemplatesTab({ recipes }) {
+function TemplatesTab({ recipes, foods }) {
   const [templates, setTemplates] = useState([])
   const [loading, setLoading]     = useState(true)
   const [newName, setNewName]     = useState('')
@@ -691,8 +695,10 @@ function TemplatesTab({ recipes }) {
       await supabase.from('meal_plan').delete().gte('date', from).lte('date', to)
       const rows = (items || []).map(it => ({
         date: format(addDays(weekMonday, it.day_of_week), 'yyyy-MM-dd'),
-        slot: it.slot, type: 'recipe', recipe_id: it.recipe_id, recipe_name: it.recipe_name,
-        servings: it.servings, calories: it.calories, protein_g: it.protein_g, carbs_g: it.carbs_g, fat_g: it.fat_g,
+        slot: it.slot, type: it.type || 'recipe',
+        recipe_id: it.recipe_id, recipe_name: it.recipe_name, servings: it.servings,
+        food_id: it.food_id, food_name: it.food_name, quantity_g: it.quantity_g,
+        calories: it.calories, protein_g: it.protein_g, carbs_g: it.carbs_g, fat_g: it.fat_g,
       }))
       if (rows.length > 0) await supabase.from('meal_plan').insert(rows)
     }
@@ -701,7 +707,7 @@ function TemplatesTab({ recipes }) {
   }
 
   if (editingTemplate) {
-    return <TemplateEditor template={editingTemplate} recipes={recipes} onClose={() => { setEditingTemplate(null); load() }} />
+    return <TemplateEditor template={editingTemplate} recipes={recipes} foods={foods} onClose={() => { setEditingTemplate(null); load() }} />
   }
 
   return (
@@ -753,7 +759,7 @@ function TemplatesTab({ recipes }) {
               </div>
               <div className="flex gap-1 flex-shrink-0">
                 <button onClick={() => setApplyingTemplate(t)} className="btn-ghost text-xs py-1 px-2 gap-1"><Repeat size={12} /> Aplicar</button>
-                <button onClick={() => setEditingTemplate(t)} className="text-zinc-500 hover:text-accent-bright p-1.5"><Edit2 size={13} /></button>
+                <button onClick={() => { document.getElementById('app-scroll')?.scrollTo({ top: 0, behavior: 'smooth' }); setEditingTemplate(t) }} className="text-zinc-500 hover:text-accent-bright p-1.5"><Edit2 size={13} /></button>
                 <button onClick={() => deleteTemplate(t.id)} className="text-zinc-500 hover:text-rose p-1.5"><Trash2 size={13} /></button>
               </div>
             </div>
@@ -850,10 +856,11 @@ function WeeklyPlanner({ recipes, foods, weekStart, onNavigate }) {
       days.forEach((day, dow) => {
         const dateStr = format(day, 'yyyy-MM-dd')
         MEAL_SLOTS.forEach(slot => {
-          ;(plan[`${dateStr}_${slot}`] || []).filter(it => it.type !== 'food').forEach(it => {
+          ;(plan[`${dateStr}_${slot}`] || []).forEach(it => {
             rows.push({
-              template_id: template.id, day_of_week: dow, slot, type: 'recipe',
+              template_id: template.id, day_of_week: dow, slot, type: it.type || 'recipe',
               recipe_id: it.recipe_id, recipe_name: it.recipe_name, servings: it.servings,
+              food_id: it.food_id, food_name: it.food_name, quantity_g: it.quantity_g,
               calories: it.calories, protein_g: it.protein_g, carbs_g: it.carbs_g, fat_g: it.fat_g,
             })
           })
@@ -886,7 +893,7 @@ function WeeklyPlanner({ recipes, foods, weekStart, onNavigate }) {
         saveStatus === 'saving' ? <div className="card text-center py-4"><p className="text-sm text-white">Guardando...</p></div> :
         saveStatus === 'done' ? (
           <div className="card text-center py-4" style={{ borderColor: 'color-mix(in srgb, var(--jade) 30%, transparent)' }}>
-            <p className="text-sm" style={{ color: 'var(--jade)' }}>✓ Plantilla guardada. (Solo recetas — los alimentos sueltos no se incluyen en plantillas todavía.)</p>
+            <p className="text-sm" style={{ color: 'var(--jade)' }}>✓ Plantilla guardada.</p>
           </div>
         ) : <SaveTemplateModal onSave={saveAsTemplate} onClose={() => setShowSaveTemplate(false)} />
       )}
@@ -1173,7 +1180,7 @@ export default function Nutrition() {
       {tab === 'daily'     && <DailyLog foods={foods} />}
       {tab === 'weekly'    && <WeeklyPlanner recipes={recipes} foods={foods} weekStart={weekStart}
                                 onNavigate={dir => setWeekStart(w => dir > 0 ? addWeeks(w, 1) : subWeeks(w, 1))} />}
-      {tab === 'templates' && <TemplatesTab recipes={recipes} />}
+      {tab === 'templates' && <TemplatesTab recipes={recipes} foods={foods} />}
       {tab === 'recipes'   && <RecipesTab recipes={recipes} foods={foods} onSave={saveRecipe} onUpdate={updateRecipe} onDelete={deleteRecipe} />}
       {tab === 'foods'     && <FoodsTab foods={foods} onAdd={addFood} onUpdate={updateFood} onDelete={deleteFood} />}
     </div>
