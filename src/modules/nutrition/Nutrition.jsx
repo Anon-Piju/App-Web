@@ -1126,35 +1126,43 @@ export default function Nutrition() {
   useEffect(() => { loadFoods(); loadRecipes() }, [])
 
   async function loadFoods() {
-    const { data } = await supabase.from('foods').select('*').order('name')
+    const { data, error } = await supabase.from('foods').select('*').order('name')
+    if (error) console.error('loadFoods error:', error)
     setFoods(data || [])
   }
   async function loadRecipes() {
-    const { data } = await supabase.from('recipes').select('*').order('name')
+    const { data, error } = await supabase.from('recipes').select('*').order('name')
+    if (error) console.error('loadRecipes error:', error)
     setRecipes(data || [])
   }
   async function addFood(food) {
-    const { data } = await supabase.from('foods').insert([food]).select().single()
+    const { data, error } = await supabase.from('foods').insert([food]).select().single()
+    if (error) { console.error('addFood error:', error); alert('No se pudo guardar el alimento: ' + error.message); return }
     if (data) setFoods(prev => [...prev, data].sort((a, b) => a.name.localeCompare(b.name)))
   }
   async function deleteFood(id) {
-    await supabase.from('foods').delete().eq('id', id)
+    const { error } = await supabase.from('foods').delete().eq('id', id)
+    if (error) { console.error('deleteFood error:', error); alert('No se pudo eliminar: ' + error.message); return }
     setFoods(prev => prev.filter(f => f.id !== id))
   }
   async function updateRecipe(id, recipe) {
-    const { data } = await supabase.from('recipes').update(recipe).eq('id', id).select().single()
+    const { data, error } = await supabase.from('recipes').update(recipe).eq('id', id).select().single()
+    if (error) { console.error('updateRecipe error:', error); alert('No se pudo guardar la receta: ' + error.message); return }
     if (data) setRecipes(prev => prev.map(r => r.id === id ? data : r))
   }
   async function updateFood(id, food) {
-    const { data } = await supabase.from('foods').update(food).eq('id', id).select().single()
+    const { data, error } = await supabase.from('foods').update(food).eq('id', id).select().single()
+    if (error) { console.error('updateFood error:', error); alert('No se pudo guardar el alimento: ' + error.message); return }
     if (data) setFoods(prev => prev.map(f => f.id === id ? data : f).sort((a, b) => a.name.localeCompare(b.name)))
   }
   async function saveRecipe(recipe) {
-    const { data } = await supabase.from('recipes').insert([recipe]).select().single()
+    const { data, error } = await supabase.from('recipes').insert([recipe]).select().single()
+    if (error) { console.error('saveRecipe error:', error); alert('No se pudo guardar la receta: ' + error.message); return }
     if (data) setRecipes(prev => [...prev, data])
   }
   async function deleteRecipe(id) {
-    await supabase.from('recipes').delete().eq('id', id)
+    const { error } = await supabase.from('recipes').delete().eq('id', id)
+    if (error) { console.error('deleteRecipe error:', error); alert('No se pudo eliminar: ' + error.message); return }
     setRecipes(prev => prev.filter(r => r.id !== id))
   }
 
