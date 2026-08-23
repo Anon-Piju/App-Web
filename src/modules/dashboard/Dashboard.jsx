@@ -178,14 +178,12 @@ export default function Dashboard() {
       ) : (
         <div className="space-y-3">
           <p className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Resumen de hoy</p>
-          {hasTasks && (
-            <TasksWidget pending={stats.tasks.pending} inProgress={stats.tasks.inProgress} total={stats.tasks.total} className="w-full" />
-          )}
-          {otherCards.length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {otherCards.map((c, i) => <StatCard key={i} {...c} />)}
-            </div>
-          )}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3" style={{ alignItems: 'start' }}>
+            {hasTasks && (
+              <TasksWidget pending={stats.tasks.pending} inProgress={stats.tasks.inProgress} total={stats.tasks.total} className="col-span-2 sm:col-span-3" />
+            )}
+            {otherCards.map((c, i) => <StatCard key={i} {...c} />)}
+          </div>
         </div>
       )}
     </div>
